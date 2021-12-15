@@ -158,7 +158,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     return result
 
 
-def renderMenu(selectedFolder = '', currentParent = ''):
+def renderMenu(selectedFolder = '', currentParent = '', linkPrefix = '.'):
     """
     Renders the menu on the left
 
@@ -173,7 +173,7 @@ def renderMenu(selectedFolder = '', currentParent = ''):
             continue
 
         menuToAdd = folder
-        menuToAdd["children"] = renderMenu(selectedFolder, currentParent=folderID)
+        menuToAdd["children"] = renderMenu(selectedFolder, currentParent=folderID, linkPrefix=linkPrefix)
         menuToShow.append(menuToAdd)
 
     if len(menuToShow) <= 0:
@@ -181,7 +181,7 @@ def renderMenu(selectedFolder = '', currentParent = ''):
 
     menuToShow.sort(key=lambda val: val["title"])
 
-    return renderTemplate("nav-ul.tpl", None, menuToShow=menuToShow)
+    return renderTemplate("nav-ul.tpl", None, menuToShow=menuToShow, linkPrefix=linkPrefix)
 
 
 def renderPage(saveTo, **kwargs):
@@ -192,7 +192,8 @@ def renderPage(saveTo, **kwargs):
     """
     kwargs['title'] = getTitle(kwargs.get('title'))
     kwargs['username'] = IMAPLOGIN
-    kwargs['sideMenu'] = renderMenu()
+    kwargs['linkPrefix'] = kwargs.get('linkPrefix', '.')
+    kwargs['sideMenu'] = renderMenu(linkPrefix=kwargs['linkPrefix'])
 
     if (kwargs.get("headerTitle")):
         kwargs['header'] = renderHeader(kwargs.get("headerTitle"))
@@ -230,15 +231,19 @@ def getMailFolders():
 
         parts = ifo.split(".")
 
-        fileName = "%s.html" % md5.new(ifo).hexdigest()
+        fileName = "%s/index.html" % ifo
         mailFolders[ifo] = {
             "id": ifo,
             "title": imaputf7decode(parts[len(parts) - 1]),
             "parent": '.'.join(parts[:-1]),
             "selected": ifo in IMAPFOLDER or imaputf7decode(ifo) in IMAPFOLDER,
+            "folder": ifo,
             "file": fileName,
-            "link": "./%s" % fileName,
+            "link": "/%s" % fileName,
         }
+
+        if mailFolders[ifo]["selected"] and not os.path.exists("%s/%s" % (maildir_result, mailFolders[ifo]["folder"])):
+            os.mkdir("%s/%s" % (maildir_result, mailFolders[ifo]["folder"]))
 
     # Single root folders do not matter really - usually it's just "INBOX"
     # Let's see how many menus existi with no parent
@@ -471,10 +476,12 @@ def renderIndexPage():
     renderPage(
         "%s/%s" % (maildir_result, "index.html"),
         headerTitle="Email Backup index page",
+        linkPrefix=".",
         content=renderTemplate(
             "page-index.html.tpl",
             None,
             allInfo=allInfo,
+            linkPrefix=".",
         )
     )
 
@@ -504,9 +511,9 @@ def returnImapFolders(available=True, selected=True, html=False):
             ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
             ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
             if html:
-                response += "- %s <br />\n" % imaputf7decode(ifo).encode('utf-8')
+                response += "- %s <br />\n" % ifo
             else:
-                response += "- %s \n" % imaputf7decode(ifo).encode('utf-8')
+                response += "- %s \n" % ifo
         response += "\n"
 
     if selected:
@@ -516,9 +523,9 @@ def returnImapFolders(available=True, selected=True, html=False):
             response += "Selected folders:\n"
         for sfo in IMAPFOLDER:
             if html:
-                response += "- %s <br />\n" % imaputf7decode(sfo).encode('utf-8')
+                response += "- %s <br />\n" % sfo
             else:
-                response += "- %s \n" % imaputf7decode(sfo).encode('utf-8')
+                response += "- %s \n" % sfo
     if html:    
         response += "<br />\n"
     else:
@@ -931,6 +938,112 @@ def return_sorted_email_list(maildir):
 
 def backup_mails_to_html_from_local_maildir(folder):
     global maildir_raw
+
+    mailList = {}
+
+    local_maildir_folder = folder.replace("/", ".")
+    local_maildir = mailbox.Maildir(os.path.join(maildir_raw), factory=None, create=True)
+    try:
+        maildir_folder = local_maildir.get_folder(local_maildir_folder)
+    except mailbox.NoSuchMailboxError as e:
+        renderPage(
+            "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
+            headerTitle="Folder %s" % mailFolders[folder]["title"],
+            content=renderTemplate(
+                "page-mail-list.tpl",
+                None,
+                mailList=mailList,
+            )
+        )
+
+        return
+
+    for mail in maildir_folder:
+        mail_subject = decode_header(mail.get('Subject'))[0][0]
+        mail_subject_encoding = decode_header(mail.get('Subject'))[0][1]
+        if not mail_subject_encoding:
+            mail_subject_encoding = "utf-8"
+
+        if not mail_subject:
+            mail_subject = "(No Subject)"
+
+        mail_from = email.utils.parseaddr(mail.get('From'))[1]
+
+        mail_from_encoding = decode_header(mail.get('From'))[0][1]
+        if not mail_from_encoding:
+            mail_from_encoding = "utf-8"
+
+        mail_to = email.utils.parseaddr(mail.get('To'))[1]
+        mail_to_encoding = decode_header(mail.get('To'))[0][1]
+        if not mail_to_encoding:
+            mail_to_encoding = "utf-8"
+
+        mail_date = email.utils.parsedate(decode_header(mail.get('Date'))[0][0])
+
+        try:
+            mail_subject = cgi.escape(unicode(mail_subject, mail_subject_encoding)).encode('ascii', 'xmlcharrefreplace')
+            mail_to = cgi.escape(unicode(mail_to, mail_to_encoding)).encode('ascii', 'xmlcharrefreplace')
+            mail_from = cgi.escape(unicode(mail_from, mail_from_encoding)).encode('ascii', 'xmlcharrefreplace')
+        except Exception:
+            mail_subject = decode_string(mail_subject)
+            mail_to = decode_string(mail_to)
+            mail_from = decode_string(mail_from)
+
+        # try:
+        #     email_date = str(time.strftime("%d-%m-%Y %H:%m", email.utils.parsedate(mail_date)))
+        #     attachment_folder_date = str(time.strftime("%Y/%m/", email.utils.parsedate(mail_date)))
+        # except TypeError:
+        #     email_date = "Error in Date"
+        #     attachment_folder_date = str("2000/1/")
+
+        mail_id = mail.get('Message-Id')
+        mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
+
+        try:
+            os.makedirs("%s/%s" % (maildir_result, mail_folder))
+        except:
+            pass
+
+        fileName = "%s/%s.html" % (mail_folder, md5.new(mail_id).hexdigest())
+
+        mailList[mail_id] = {
+            "id": mail_id,
+            "from": mail_from,
+            "to": mail_to,
+            "subject": mail_subject,
+            "date": str(time.strftime("%Y-%m-%d %H:%m", mail_date)),
+            "size": len(str(mail)),
+            "file": fileName,
+            "link": "/%s" % fileName,
+            "raw": str(mail),
+        }
+
+        renderPage(
+            "%s/%s" % (maildir_result, mailList[mail_id]["file"]),
+            linkPrefix="../../../..",
+            content=renderTemplate(
+                "page-mail.tpl",
+                None,
+                mail=mailList[mail_id],
+                linkPrefix="../../../..",
+            )
+        )
+
+    renderPage(
+        "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
+        headerTitle="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
+        linkPrefix="..",
+        content=renderTemplate(
+            "page-mail-list.tpl",
+            None,
+            mailList=mailList,
+            linkPrefix="..",
+        )
+    )
+
+    return
+
+
     global messages_per_overview_page
     ## Maildir folders have dots, not slashes
     local_maildir_folder = folder.replace("/", ".")
@@ -1077,8 +1190,8 @@ for folderID in mailFolders:
         continue
 
     print(("Processing folder: %s.") % imaputf7decode(folderID))
-    remove("%s/%s/inc" % (maildir_result, folderID))
-    copy(inc_location, "%s/%s/inc" % (maildir_result, folderID))
+    # remove("%s/%s/inc" % (maildir_result, folderID))
+    # copy(inc_location, "%s/%s/inc" % (maildir_result, folderID))
     backup_mails_to_html_from_local_maildir(folderID)
     print(("Done with folder: %s.") % imaputf7decode(folderID))
     print("\n")
