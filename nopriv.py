@@ -36,6 +36,9 @@ import ConfigParser
 from quopri import decodestring
 import getpass
 
+from jinja2 import Template
+import md5
+
 # places where the config could be located
 config_file_paths = [ 
     './nopriv.ini',
@@ -98,6 +101,7 @@ except:
 enable_html = True
 CreateMailDir = True
 messages_per_overview_page = 50
+mailFolders = None
 
 inc_location = "inc"
 
@@ -117,9 +121,143 @@ maildir_raw = "%s/raw" % maildir
 if not os.path.exists(maildir_raw):
     os.mkdir(maildir_raw)
 
-maildir_result = "%s/result" % maildir
+maildir_result = "%s/html" % maildir
 if not os.path.exists(maildir_result):
     os.mkdir(maildir_result)
+
+
+def getTitle(title = None):
+    """
+    Returns title for all pges
+    """
+
+    result = []
+    if title:
+        result.append(title)
+    
+    result.append('%s@%s' % (IMAPLOGIN, IMAPSERVER))
+    result.append('IMAP to local HTML')
+
+    return ' | '.join(result)
+
+
+def renderTemplate(templateFrom, saveTo, **kwargs):
+    """
+    Helper function to render a tamplete with variables
+    """
+    templateContents = ''
+    with open("templates/%s" % templateFrom, "r") as f:
+        templateContents = f.read()
+
+    template = Template(templateContents)
+    result = template.render(**kwargs)
+    if saveTo:
+        with open(saveTo, "w") as f:
+            f.write(result.encode('utf-8'))
+
+    return result
+
+
+def renderMenu(selectedFolder = '', currentParent = ''):
+    """
+    Renders the menu on the left
+
+    Expects: selected folder (id), currentParent (for recursion)
+    """
+
+    menuToShow = []
+    folders = getMailFolders()
+    for folderID in folders:
+        folder = folders[folderID]
+        if folder["parent"] != currentParent:
+            continue
+
+        menuToAdd = folder
+        menuToAdd["children"] = renderMenu(selectedFolder, currentParent=folderID)
+        menuToShow.append(menuToAdd)
+
+    if len(menuToShow) <= 0:
+        return ""
+
+    menuToShow.sort(key=lambda val: val["title"])
+
+    return renderTemplate("nav-ul.tpl", None, menuToShow=menuToShow)
+
+
+def renderPage(saveTo, **kwargs):
+    """
+    HTML page wrapper
+
+    Expects: title, contentZ
+    """
+    kwargs['title'] = getTitle(kwargs.get('title'))
+    kwargs['username'] = IMAPLOGIN
+    kwargs['sideMenu'] = renderMenu()
+
+    if (kwargs.get("headerTitle")):
+        kwargs['header'] = renderHeader(kwargs.get("headerTitle"))
+
+    return renderTemplate("html.tpl", saveTo, **kwargs)
+
+
+def renderHeader(title):
+    """
+    Renders a simple header
+
+    Expects: title
+    """
+
+    return renderTemplate("header-main.tpl", None, title=title)
+
+
+def getMailFolders():
+    """
+    Returns mail folders
+    """
+    global mailFolders
+
+    if not mailFolders is None:
+        return mailFolders
+
+    mailFolders = {}
+    maillist = mail.list()
+    for ifo in sorted(maillist[1]):
+        ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
+        # TODO, maybe consider identifying separator 
+        ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
+        ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
+        ifo = ifo.strip()
+
+        parts = ifo.split(".")
+
+        fileName = "%s.html" % md5.new(ifo).hexdigest()
+        mailFolders[ifo] = {
+            "id": ifo,
+            "title": imaputf7decode(parts[len(parts) - 1]),
+            "parent": '.'.join(parts[:-1]),
+            "selected": ifo in IMAPFOLDER or imaputf7decode(ifo) in IMAPFOLDER,
+            "file": fileName,
+            "link": "./%s" % fileName,
+        }
+
+    # Single root folders do not matter really - usually it's just "INBOX"
+    # Let's see how many menus existi with no parent
+    menusWithNoParent = []
+    for menu in mailFolders:
+        if mailFolders[menu]["parent"] == "":
+            menusWithNoParent.append(menu)
+
+    # None found or more than one, go home
+    if len(menusWithNoParent) == 1:
+        # We remove it
+        del mailFolders[menusWithNoParent[0]]
+
+        # We change fatherhood for all children
+        for menu in mailFolders:
+            if mailFolders[menu]["parent"] == menusWithNoParent[0]:
+                mailFolders[menu]["parent"] = ""
+
+    return mailFolders
 
 
 def returnHeader(title, inclocation=inc_location):
@@ -306,46 +444,39 @@ def get_messages_to_local_maildir(mailFolder, mail, startid = 1):
         
 
 
-def returnIndexPage():
+def renderIndexPage():
     global IMAPFOLDER
     global IMAPLOGIN
     global IMAPSERVER
     global ssl
     global offline
     now = datetime.datetime.now()
-    with open("%s/%s" % (maildir_result, "index.html"), "w") as indexFile:
-        indexFile.write(returnHeader("Email Backup Overview Page"))
-        indexFile.write("<div class=\"col-md-3 col-md-offset-1\">\n")
-        indexFile.write("<h3>Folders</h3>\n")
-        indexFile.write(returnMenu("", index=True, vertical = True, activeItem="index"))
-        indexFile.write("</div>\n")
-        indexFile.write("<div class=\"col-md-8\">\n")
-        indexFile.write("<h3>Information</h3>\n")
-        indexFile.write("<p>This is your email backup. You've made it with ")
-        indexFile.write("<a href=\"https://raymii.org/s/software/Nopriv.py.html\"")
-        indexFile.write(">NoPriv.py from Raymii.org</a>.<br />\n")
-        indexFile.write("On the right you have the folders you wanted to backup.\n")
-        indexFile.write("Click one to get the overview of that folder.<br />\n")
-        indexFile.write("</p>\n<hr />\n<p>\n")
-        indexFile.write("Here is the information you gave me: <br />\n")
-        indexFile.write("IMAP Server: " + IMAPSERVER + "<br />\n")
-        indexFile.write("Username: " + IMAPLOGIN + "<br />\n")
-        indexFile.write("Date of backup: " + str(now) + "<br />\n")
-        indexFile.write("Folders to backup: <br />\n<ul>\n")
-        for folder in IMAPFOLDER:
-            indexFile.write("\t<li><a href = \"%s/email-report-1.html\">%s</a></li>\n" % (folder, imaputf7decode(folder).encode('utf-8')))
-        indexFile.write("</ul>\n")
-        indexFile.write("<br />Available Folders:<br />")
-        if not offline:
-            indexFile.write(returnImapFolders(available=True, selected=False, html=True))
-        if ssl:
-            indexFile.write("And, you've got a good mail provider, they support SSL and your backup was made over SSL.<br />\n")
-        else:
-            indexFile.write("No encrption was used when getting the emails.<br />\n")
-        indexFile.write("Thats all folks, have a nice day!</p>\n")
-        indexFile.write("</div>")
-        indexFile.write(returnFooter())
-        indexFile.close()
+
+    allInfo = []
+    allInfo.append({
+        "title": "IMAP Server",
+        "value": IMAPSERVER,
+    })
+
+    allInfo.append({
+        "title": "Username",
+        "value": IMAPLOGIN,
+    })
+
+    allInfo.append({
+        "title": "Date of backup",
+        "value": str(now),
+    })
+
+    renderPage(
+        "%s/%s" % (maildir_result, "index.html"),
+        headerTitle="Email Backup index page",
+        content=renderTemplate(
+            "page-index.html.tpl",
+            None,
+            allInfo=allInfo,
+        )
+    )
 
 
 def allFolders(IMAPFOLDER_ORIG, mail):
@@ -402,7 +533,7 @@ def returnMenu(folderImIn, inDate = False, index = False, vertical = False, acti
     folder_number = folderImIn.split('/')
     current_folder = folder_number
     folder_number = len(folder_number)
-    dotdotslash = ""
+    dotdotslash = "./"
 
     if vertical:
         response = '<ul class="nav nav-pills nav-stacked">'
@@ -411,13 +542,13 @@ def returnMenu(folderImIn, inDate = False, index = False, vertical = False, acti
 
     if not index:
         for _ in range(int(folder_number)):
-            dotdotslash += "../"
+            dotdotslash += ""
         if inDate:
-            dotdotslash += "../../"
+            dotdotslash += "../"
     if index:
-        response += "\t<li class=\"active\"><a href=\"../index.html\">Index</a></li>\n"
+        response += "\t<li class=\"active\"><a href=\"" + dotdotslash + "/index.html\">Index</a></li>\n"
     else:
-        response += "\t<li><a href=\"../index.html\">Index</a></li>\n"
+        response += "\t<li><a href=\"" + dotdotslash + "/index.html\">Index</a></li>\n"
 
 
     for folder in IMAPFOLDER:
@@ -483,16 +614,17 @@ def createOverviewPage(folder, pagenumber, amountOfItems = 50):
         overview_file.write(returnHeader("Email backup page #" + str(pagenumber)))
         overview_file.write(returnMenu(folder, activeItem=folder))
         overview_file.write("<table class=\"table table-responsive table-striped\">")
-        overview_file.write("<thead>")
-        overview_file.write("<tr>")
-        overview_file.write("<th>#</th>")
-        overview_file.write("<th>From</th>")
-        overview_file.write("<th>To</th>")
-        overview_file.write("<th>Subject</th>")
-        overview_file.write("<th>Date</th>")
-        overview_file.write("</tr>")
-        overview_file.write("</thead>")
-        overview_file.write("<tbody>")
+        overview_file.write(  "<thead>")
+        overview_file.write(    "<tr>")
+        overview_file.write(      "<th>#</th>")
+        overview_file.write(      "<th>From</th>")
+        overview_file.write(      "<th>To</th>")
+        overview_file.write(      "<th>Subject</th>")
+        overview_file.write(      "<th>Date</th>")
+        overview_file.write(      "<th>Size</th>")
+        overview_file.write(    "</tr>")
+        overview_file.write(  "</thead>")
+        overview_file.write(  "<tbody>")
         overview_file.close()
 
 
@@ -501,7 +633,10 @@ def addMailToOverviewPage(folder, pagenumber, mail_id, mail_from,
                           mail_to,  mail_subject, mail_date, 
                           mail_from_encoding = "utf-8", mail_to_encoding = "utf-8",
                           mail_subject_encoding = "utf-8", 
-                          attachment = False, emptyFolder = False):
+                          attachment = False,
+                          emptyFolder = False,
+                          mail_size = None,
+                          ):
     try:
         mail_subject = cgi.escape(unicode(mail_subject, mail_subject_encoding)).encode('ascii', 'xmlcharrefreplace')
         mail_to = cgi.escape(unicode(mail_to, mail_to_encoding)).encode('ascii', 'xmlcharrefreplace')
@@ -537,6 +672,8 @@ def addMailToOverviewPage(folder, pagenumber, mail_id, mail_from,
             overview_file.write("</a>")
         overview_file.write("</td>\n\t\t<td>")
         overview_file.write(str(mail_date))
+        overview_file.write("</td>\n\t\t<td>")
+        overview_file.write(str(mail_size))
         overview_file.write("</td>\n\t</tr>\n\t")
         overview_file.close()
 
@@ -867,6 +1004,7 @@ def backup_mails_to_html_from_local_maildir(folder):
                               mail_from_encoding = mail_from_encoding, 
                               mail_to_encoding = mail_to_encoding,
                               mail_subject_encoding = mail_subject_encoding,
+                              mail_size = len(str(mail)),
                             )  
 
         mail_has_attachment = save_mail_attachments_to_folders(mail_number, mail_for_page, folder, folder)
@@ -900,7 +1038,7 @@ if not offline:
     IMAPFOLDER = allFolders(IMAPFOLDER_ORIG, mail)
     print(returnImapFolders())
     
-returnIndexPage()
+renderIndexPage()
 
 if not offline:
     for folder in IMAPFOLDER:    
@@ -933,12 +1071,16 @@ if not offline:
         print("\n")
 
 
-for folder in IMAPFOLDER:
-    print(("Processing folder: %s.") % imaputf7decode(folder))
-    remove("%s/%s/inc" % (maildir_result, folder))
-    copy(inc_location, "%s/%s/inc" % (maildir_result, folder))
-    backup_mails_to_html_from_local_maildir(folder)
-    print(("Done with folder: %s.") % imaputf7decode(folder))
+for folderID in mailFolders:
+    folder = mailFolders[folderID] 
+    if not folder["selected"]:
+        continue
+
+    print(("Processing folder: %s.") % imaputf7decode(folderID))
+    remove("%s/%s/inc" % (maildir_result, folderID))
+    copy(inc_location, "%s/%s/inc" % (maildir_result, folderID))
+    backup_mails_to_html_from_local_maildir(folderID)
+    print(("Done with folder: %s.") % imaputf7decode(folderID))
     print("\n")
 
 remove("%s/inc" % maildir_result)

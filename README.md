@@ -4,6 +4,15 @@ This is a python script to backup any IMAP capable email account to a bowsable H
 
 Fork from [RaymiiOrg/NoPriv](https://github.com/RaymiiOrg/NoPriv)
 
+### Virtual environment
+It is always better to use a virtual environment
+1. Create one with python 2.x, for example `virtualenv --python=/usr/bin/python env`
+2. Get into it, for example `. env/bin/activate`
+3. Install dependencies from `requirements.txt`, for example `pip install -r requirements.txt`
+4. Execute main program, for example `python nopriv.py`
+4. Get out from the virtual environment, for example `deactivate`
+
+
 ### Screenshots
 
 #### Running the program
