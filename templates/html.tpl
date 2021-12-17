@@ -7,6 +7,7 @@
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="{{linkPrefix}}/inc/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{linkPrefix}}/inc/bootstrap-icons/bootstrap-icons.css">
     <link rel="stylesheet" href="{{linkPrefix}}/inc/css/dashboard.css">
 
     <title>{{ title }}</title>
@@ -24,8 +25,10 @@
         </nav>
     
         <main role="main" class="col-md-8 ml-sm-auto col-lg-10 px-4">
-          {{ header }}
-          {{ content }}
+          <div id="content">
+            {{ header }}
+            {{ content }}
+          </div>
         </main>
     </div>
 

@@ -2,6 +2,10 @@ body {
   font-size: .875rem;
 }
 
+#content {
+  padding: 0 1.5rem;
+}
+
 .feather {
   width: 16px;
   height: 16px;
@@ -42,6 +46,9 @@ body {
   font-weight: 500;
   color: #333;
   padding-bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-file'%3E%3Cpath d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'%3E%3C/path%3E%3Cpolyline points='13 2 13 9 20 9'%3E%3C/polyline%3E%3C/svg%3E") 0.4em 0.8em no-repeat;
+  background-size: 1.1em;
+  padding-left: 2em;
 }
 
 .sidebar .nav-link .feather {
@@ -85,6 +92,25 @@ body {
   [role="main"] {
     padding-top: 48px; /* Space for fixed navbar */
   }
+}
+
+#mail-content {
+  padding: 1.5rem 0;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#mail-content .nav-tabs {
+  margin-bottom: 1rem;
+}
+
+#mail-content blockquote {
+  padding-left: 1.5em;
+  border-left: 2px solid rgb(206, 206, 206);
+}
+
+ol.attachments {
+  padding: 0 1em;
 }
 
 /*
