@@ -593,342 +593,18 @@ def moveMailDir(maildir):
     move(maildir, maildirfilename)
 
 def returnWelcome():
-    print("##############################################")
-    print("# NoPriv.py IMAP Email Backup by Raymii.org. #")
-    if offline:
-        print("# OFFLINE MODE ENABLED                       #")
-    print("# version 6, released 17-11-2013.            #")
-    print("# https://raymii.org - NoPriv.py is GPLv3    #")
-    print("##############################################")
+    print("########################################################")
+    print("# IMAP to Local HTML Backup by Charalampos Tsmipouris  #")
+    print("########################################################")
     print("")
     print("Runtime Information:")
     print(sys.version)
     print("")
 
 
-def createOverviewPage(folder, pagenumber, amountOfItems = 50):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    overview_page_name = "email-report-" + str(pagenumber) + ".html"
-    overview_file_path = os.path.join(folder, overview_page_name)
-    with open(overview_file_path, "w") as overview_file:
-        overview_file.write(returnHeader("Email backup page #" + str(pagenumber)))
-        overview_file.write(returnMenu(folder, activeItem=folder))
-        overview_file.write("<table class=\"table table-responsive table-striped\">")
-        overview_file.write(  "<thead>")
-        overview_file.write(    "<tr>")
-        overview_file.write(      "<th>#</th>")
-        overview_file.write(      "<th>From</th>")
-        overview_file.write(      "<th>To</th>")
-        overview_file.write(      "<th>Subject</th>")
-        overview_file.write(      "<th>Date</th>")
-        overview_file.write(      "<th>Size</th>")
-        overview_file.write(    "</tr>")
-        overview_file.write(  "</thead>")
-        overview_file.write(  "<tbody>")
-        overview_file.close()
-
-
-
-def addMailToOverviewPage(folder, pagenumber, mail_id, mail_from, 
-                          mail_to,  mail_subject, mail_date, 
-                          mail_from_encoding = "utf-8", mail_to_encoding = "utf-8",
-                          mail_subject_encoding = "utf-8", 
-                          attachment = False,
-                          emptyFolder = False,
-                          mail_size = None,
-                          ):
-    try:
-        mail_subject = cgi.escape(unicode(mail_subject, mail_subject_encoding)).encode('ascii', 'xmlcharrefreplace')
-        mail_to = cgi.escape(unicode(mail_to, mail_to_encoding)).encode('ascii', 'xmlcharrefreplace')
-        mail_from = cgi.escape(unicode(mail_from, mail_from_encoding)).encode('ascii', 'xmlcharrefreplace')
-    except Exception:
-        mail_subject = decode_string(mail_subject)
-        mail_to = decode_string(mail_to)
-        mail_from = decode_string(mail_from)
-
-    try:
-        email_date = str(time.strftime("%d-%m-%Y %H:%m", email.utils.parsedate(mail_date)))
-        attachment_folder_date = str(time.strftime("%Y/%m/", email.utils.parsedate(mail_date)))
-    except TypeError:
-        email_date = "Error in Date"
-        attachment_folder_date = str("2000/1/")
-
-    email_file_path = os.path.join(attachment_folder_date, str(mail_id), "index.html")
-
-    overview_page_name = "email-report-" + str(pagenumber) + ".html"
-    overview_file_path = os.path.join(maildir_result, folder, overview_page_name)
-    with open(overview_file_path, "a") as overview_file:
-        overview_file.write("<tr>\n\t\t<td>")
-        overview_file.write(str(mail_id))
-        overview_file.write("</td>\n\t\t<td>")
-        overview_file.write(mail_from.decode('string-escape'))
-        overview_file.write("</td>\n\t\t<td>")
-        overview_file.write(mail_to)
-        overview_file.write("</td>\n\t\t<td>")
-        if not emptyFolder:
-            overview_file.write("<a href=\"" + email_file_path + "\">")
-        overview_file.write(mail_subject)
-        if not emptyFolder:
-            overview_file.write("</a>")
-        overview_file.write("</td>\n\t\t<td>")
-        overview_file.write(str(mail_date))
-        overview_file.write("</td>\n\t\t<td>")
-        overview_file.write(str(mail_size))
-        overview_file.write("</td>\n\t</tr>\n\t")
-        overview_file.close()
-
-def finishOverviewPage(folder, pagenumber, previouspage, nextpage, total_messages_in_folder):
-    overview_page_name = "email-report-" + str(pagenumber) + ".html"
-    overview_file_path = os.path.join(maildir_result, folder, overview_page_name)
-    with open(overview_file_path, "a") as overview_file:
-        overview_file.write("\t<tr>\n")
-        overview_file.write("\t<td></td>\n")
-        overview_file.write("\t\t<td>")
-        if previouspage:
-            overview_file.write("<a href = \"email-report-" + str(previouspage) + ".html\">Previous page (#" + str(previouspage) + ")</a>")
-        else:
-            overview_file.write("No previous page.")
-        overview_file.write("</td>\n")
-
-        overview_file.write("\t\t<td>")
-        if nextpage:
-            overview_file.write("<a href = \"email-report-" + str(nextpage) + ".html\">Next page (#" + str(nextpage) + ")</a>")
-        else:
-            overview_file.write("No more pages.")
-
-        overview_file.write("</td>\n")
-        overview_file.write("\t\t<td>")
-        overview_file.write("Total items in folder: " + str(total_messages_in_folder))
-        overview_file.write("</td>\n")
-
-        overview_file.write("\t<td></td>\n")
-
-        overview_file.write("\t</tr>")
-        overview_file.write("\n</table>\n")
-        overview_file.write(returnFooter())
-        overview_file.close()
-
-
-
-def createMailPage(folder, mail_id, mail_for_page, current_page_number,
-                       mail_from, mail_to, mail_subject, mail_date,
-                       mail_has_attachment = False,
-                       mail_from_encoding = "utf-8", 
-                       mail_to_encoding = "utf-8",
-                       mail_subject_encoding = "utf-8"):
-
-    mail = mail_for_page
-
-    try:
-        mail_subject = cgi.escape(unicode(mail_subject, mail_subject_encoding)).encode('ascii', 'xmlcharrefreplace')
-        mail_to = cgi.escape(unicode(mail_to, mail_to_encoding)).encode('ascii', 'xmlcharrefreplace')
-        mail_from = cgi.escape(unicode(mail_from, mail_from_encoding)).encode('ascii', 'xmlcharrefreplace')
-    except Exception:
-        mail_subject = decode_string(mail_subject)
-        mail_to = decode_string(mail_to)
-        mail_from = decode_string(mail_from)
-
-    mail_number = int(mail_id)
-
-    print(("Processing mail %s from %s with subject %s.") % ( mail_id, mail_from, mail_subject))
-
-    try:
-        email_date = str(time.strftime("%d-%m-%Y %H:%m", email.utils.parsedate(mail_date)))
-        attachment_folder_date = str(time.strftime("%Y/%m/", email.utils.parsedate(mail_date)))
-    except TypeError:
-        email_date = "Error in Date"
-        attachment_folder_date = str("2000/1/")
-
-    content_of_mail = {}
-    content_of_mail['text'] = ""
-    content_of_mail['html'] = ""
-
-    for part in mail.walk():
-        part_content_type = part.get_content_type()
-        part_charset = part.get_charsets()
-        if part_content_type == 'text/plain':
-            part_decoded_contents = part.get_payload(decode=True)
-            try:
-                if part_charset[0]:
-                    content_of_mail['text'] += cgi.escape(unicode(str(part_decoded_contents), part_charset[0])).encode('ascii', 'xmlcharrefreplace')
-                else:
-                    content_of_mail['text'] += cgi.escape(str(part_decoded_contents)).encode('ascii', 'xmlcharrefreplace')
-            except Exception:
-                try:
-                    content_of_mail['text'] +=  decode_string(part_decoded_contents)
-                except DecodeError:
-                    content_of_mail['text'] += "Error decoding mail contents."
-                    print("Error decoding mail contents")
-            continue
-        elif part_content_type == 'text/html':
-            part_decoded_contents = part.get_payload(decode=True)
-            try:
-                if part_charset[0]:
-                    content_of_mail['html'] += unicode(str(part_decoded_contents), part_charset[0]).encode('ascii', 'xmlcharrefreplace')
-                else:
-                    content_of_mail['html'] += str(part_decoded_contents).encode('ascii', 'xmlcharrefreplace')
-            except Exception:
-                try:
-                    content_of_mail['html'] += decode_string(part_decoded_contents)
-                except DecodeError:
-                    content_of_mail['html'] += "Error decoding mail contents."
-                    print("Error decoding mail contents")
-
-            continue
-
-
-
-    has_attachments = mail_has_attachment
-    folder_path_1 = os.path.join(folder, attachment_folder_date, str(mail_number))
-
-    mail_html_page = os.path.join(maildir_result, folder_path_1, "index.html")
-    with open(mail_html_page, 'w') as mail_page:
-        mail_page.write(returnHeader(mail_subject + " - NoPriv.py Email Backup by Raymii.org", "../../../inc/"))
-        mail_page.write(returnMenu(folder_path_1, activeItem=folder))
-        mail_page.write("<table>\n")
-        mail_page.write("\t<tr>\n")
-        mail_page.write("\t\t<td>From: </td>\n")
-        mail_page.write("\t\t<td>" + mail_from + "</td>\n")
-        mail_page.write("\t<tr>\n")
-
-        mail_page.write("\t<tr>\n")
-        mail_page.write("\t\t<td>To: </td>\n")
-        mail_page.write("\t\t<td>" + mail_to + "</td>\n")
-        mail_page.write("\t<tr>\n")
-
-        mail_page.write("\t<tr>\n")
-        mail_page.write("\t\t<td>Subject: </td>\n")
-        mail_page.write("\t\t<td>" + mail_subject + "</td>\n")
-        mail_page.write("\t<tr>\n")
-
-        mail_page.write("\t<tr>\n")
-        mail_page.write("\t\t<td>Date: </td>\n")
-        mail_page.write("\t\t<td>" + mail_date + "</td>\n")
-        mail_page.write("\t<tr>\n")
-
-        if has_attachments:
-            mail_page.write("\t<tr>\n")
-            mail_page.write("\t\t<td></td><td><a href=\"attachments\">Click here to open the attachments.</a> </td>\n")
-            mail_page.write("\t<tr>\n")
-        mail_page.write("\t<tr><td><br /></td>\n\t\t<td><a href=\"javascript:history.go(-1)\">Go back</a></td>\n\t</tr>\n")
-        
-        mail_page.write("</table>\n")
-
-        if content_of_mail['text']:
-            mail_page.write("<pre>")
-            strip_header = re.sub(r"(?i)<html>.*?<head>.*?</head>.*?<body>", "", content_of_mail['text'], flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)</body>.*?</html>", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)<!DOCTYPE.*?>", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)POSITION: absolute;", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)TOP: .*?;", "", strip_header, flags=re.DOTALL)
-            mail_page.write(decodestring(strip_header))
-            mail_page.write("</pre>\n")
-            
-
-        if content_of_mail['html']:
-            strip_header = re.sub(r"(?i)<html>.*?<head>.*?</head>.*?<body>", "", content_of_mail['html'], flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)</body>.*?</html>", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)<!DOCTYPE.*?>", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)POSITION: absolute;", "", strip_header, flags=re.DOTALL)
-            strip_header = re.sub(r"(?i)TOP: .*?;", "", strip_header, flags=re.DOTALL)
-            mail_page.write(decodestring(strip_header))
-        
-        mail_page.write("<a href=\"javascript:history.go(-1)\">Go back</a>")
-
-        mail_page.close()        
-
-def save_mail_attachments_to_folders(mail_id, mail, local_folder, folder):
-
-    global att_count
-    global last_att_filename
-    global maildir_result
-    returnTrue = False
-
-    try:
-        att_date = str(time.strftime("%Y/%m/", email.utils.parsedate(mail['Date'])))
-    except TypeError:
-        att_date = str("2000/1/")
-
-    if not os.path.exists(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/")):
-        os.makedirs(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/"))
-    else:
-        remove(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/"))
-        os.makedirs(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/"))
- 
-    with open(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/index.html"), "w") as att_index_file:
-        att_index_file.write(returnHeader("Attachments for mail: " + str(mail_id) + ".", "../../../../inc"))
-        att_index_file.write(returnMenu("../../../../../", activeItem=folder))
-        att_index_file.write("<h1>Attachments for mail: " + str(mail_id) + "</h1>\n")
-        att_index_file.write("<ul>\n")
-        att_index_file.close()
-
-    for part in mail.walk():
-        if part.get_content_maintype() == 'multipart':
-            continue
-        if part.get('Content-Disposition') == None:
-            continue
-        decoded_filename = part.get_filename()
-        filename_header = None
-        try:
-            filename_header = decode_header(part.get_filename())
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            filename_header = None
-
-        if filename_header:
-            filename_header = filename_header[0][0]
-            att_filename = re.sub(r'[^.a-zA-Z0-9 :;,\.\?]', "_", filename_header.replace(":", "").replace("/", "").replace("\\", ""))
-        else:
-            att_filename = re.sub(r'[^.a-zA-Z0-9 :;,\.\?]', "_", decoded_filename.replace(":", "").replace("/", "").replace("\\", ""))
-
-        if last_att_filename == att_filename:
-            att_filename = str(att_count) + "." + att_filename
-        
-        last_att_filename = att_filename
-        att_count += 1
-            
-
-        att_path = os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments", att_filename)
-        att_dir = os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments")
-
-        att_locs = []
-        with open(att_path, 'wb') as att_file:
-            try:
-                att_file.write(part.get_payload(decode=True))
-            except Exception as e:
-                att_file.write("Error writing attachment: " + str(e) + ".\n")
-                print("Error writing attachment: " + str(e) + ".\n")
-                return False
-            att_file.close()
-
-        with open(att_dir + "/index.html", "a") as att_dir_index:
-            att_dir_index.write("<li><a href=\"" + str(att_filename) + "\">" + str(att_filename) + "</a></li>\n")
-            att_dir_index.close()
-            returnTrue = True
-    
-    with open(os.path.join(maildir_result, folder, att_date, str(mail_id), "attachments/index.html"), "a") as att_index_file:
-        att_index_file.write("</ul>")
-        att_index_file.write(returnFooter())
-        att_index_file.close()
-        if returnTrue:
-            return True
-        else:
-            return False          
-
 def extract_date(email):
     date = email.get('Date')
     return parsedate(date)
-
-def return_sorted_email_list(maildir):
-    sorted_mails = sorted(maildir, key=extract_date)
-    sorted_mail_list = {}
-    number = 0
-    for mail in sorted_mails:
-        sorted_mail_list[number] = mail
-        number += 1
-
-    return sorted_mail_list
 
 
 def getMailContent(mail):
@@ -1082,13 +758,6 @@ def backup_mails_to_html_from_local_maildir(folder):
             mail_to = decode_string(mail_to)
             mail_from = decode_string(mail_from)
 
-        # try:
-        #     email_date = str(time.strftime("%d-%m-%Y %H:%m", email.utils.parsedate(mail_date)))
-        #     attachment_folder_date = str(time.strftime("%Y/%m/", email.utils.parsedate(mail_date)))
-        # except TypeError:
-        #     email_date = "Error in Date"
-        #     attachment_folder_date = str("2000/1/")
-
         mail_id = mail.get('Message-Id')
         mail_id_hash = md5.new(mail_id).hexdigest()
         mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
@@ -1196,108 +865,6 @@ def backup_mails_to_html_from_local_maildir(folder):
     )
 
     print "Done!"
-    return
-
-
-    global messages_per_overview_page
-    ## Maildir folders have dots, not slashes
-    local_maildir_folder = folder.replace("/", ".")
-    local_maildir = mailbox.Maildir(os.path.join(maildir_raw), factory=None, create=True)
-    try:
-        maildir_folder = local_maildir.get_folder(local_maildir_folder)
-    except mailbox.NoSuchMailboxError as e:
-        print(("Error: Folder \"%s\" is probably empty or does not exists: %s.") % (folder, e))
-        createOverviewPage("%s/%s" % (maildir_result, folder), 1, 0)
-        addMailToOverviewPage(folder, 1, 1, "-", "-", "Error: Folder/mailbox does not exist or is empty", "01-01-1900", emptyFolder = True)  
-        finishOverviewPage(folder, 1, 0, 0, 0)
-        return None
-
-    ## Start with the first email
-    mail_number = 1
-    total_messages_in_folder = maildir_folder.__len__()
-    try:
-        number_of_overview_pages = float(total_messages_in_folder) / float(messages_per_overview_page)
-        number_of_overview_pages = int(ceil(number_of_overview_pages))
-    except Exception as error:
-        print(error)
-        raise
-    
-    sorted_maildir = return_sorted_email_list(maildir_folder)
-    # We go through the mailbox in reverse
-    start_mail_number = total_messages_in_folder
-
-    ## Create the overview pages
-    for number in reversed(range(number_of_overview_pages)):
-        number += 1
-        createOverviewPage("%s/%s" % (maildir_result, folder), number, messages_per_overview_page)
-        
-    current_page_number = 1
-
-    ## Add the mail subject, from, to and date to the overview page
-    run = 1
-    for number in reversed(range(start_mail_number)):
-        if (current_page_number * messages_per_overview_page) == mail_number:
-            #if not current_page_number == 1:
-            current_page_number += 1
-        if not run == 1:
-            mail_number += 1
-        run += 1
-        #key = maildir_folder.keys()[number]
-
-        mail = sorted_maildir[number]
-        mail_for_page = sorted_maildir[number]
-        mail_subject = decode_header(mail.get('Subject'))[0][0]
-        mail_subject_encoding = decode_header(mail.get('Subject'))[0][1]
-        if not mail_subject_encoding:
-            mail_subject_encoding = "utf-8"
-
-        if not mail_subject:
-            mail_subject = "(No Subject)"
-
-        mail_from = email.utils.parseaddr(mail.get('From'))[1]
-
-        mail_from_encoding = decode_header(mail.get('From'))[0][1]
-        if not mail_from_encoding:
-            mail_from_encoding = "utf-8"
-
-        mail_to = email.utils.parseaddr(mail.get('To'))[1]
-        mail_to_encoding = decode_header(mail.get('To'))[0][1]
-        if not mail_to_encoding:
-            mail_to_encoding = "utf-8"
-
-        mail_date = decode_header(mail.get('Date'))[0][0]
-        
-        addMailToOverviewPage(folder, current_page_number, mail_number, 
-                              mail_from, mail_to, mail_subject, mail_date, 
-                              mail_from_encoding = mail_from_encoding, 
-                              mail_to_encoding = mail_to_encoding,
-                              mail_subject_encoding = mail_subject_encoding,
-                              mail_size = len(str(mail)),
-                            )  
-
-        mail_has_attachment = save_mail_attachments_to_folders(mail_number, mail_for_page, folder, folder)
-
-        createMailPage(folder, mail_number, mail_for_page, current_page_number,
-                       mail_from, mail_to, mail_subject, mail_date, 
-                       mail_has_attachment,
-                       mail_from_encoding = mail_from_encoding, 
-                       mail_to_encoding = mail_to_encoding,
-                       mail_subject_encoding = mail_subject_encoding)
-  
-
-    ## Finish the overview page
-    for number in reversed(range(number_of_overview_pages)):
-        number += 1
-        if number == 1 and number_of_overview_pages == 1:
-            finishOverviewPage(folder, number, 0, 0, total_messages_in_folder)
-        elif number == 1:
-            finishOverviewPage(folder, number, 0, (number + 1), total_messages_in_folder)
-        elif number == number_of_overview_pages:
-            finishOverviewPage(folder, number, (number - 1), 0, total_messages_in_folder)
-        else:
-            finishOverviewPage(folder, number, (number - 1), (number + 1), total_messages_in_folder)    
-
-
 
 returnWelcome()
 
@@ -1311,35 +878,35 @@ remove("%s/inc" % maildir_result)
 copy(inc_location, "%s/inc" % maildir_result)
 
 
-# if not offline:
-#     for folder in IMAPFOLDER:    
-#         print(("Getting messages from server from folder: %s.") % imaputf7decode(folder))
-#         retries = 0
-#         if ssl:
-#             try:
-#                 get_messages_to_local_maildir(folder, mail)    
-#             except imaplib.IMAP4_SSL.abort:
-#                 if retries < 5:
-#                     print(("SSL Connection Abort. Trying again (#%i).") % retries)
-#                     retries += 1
-#                     mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-#                     get_messages_to_local_maildir(folder, mail)
-#                 else:
-#                     print("SSL Connection gave more than 5 errors. Not trying again")
-#         else:
-#             try:
-#                 get_messages_to_local_maildir(folder, mail)    
-#             except imaplib.IMAP4.abort:
-#                 if retries < 5:
-#                     print(("Connection Abort. Trying again (#%i).") % retries)
-#                     retries += 1
-#                     mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-#                     get_messages_to_local_maildir(folder, mail)
-#                 else:
-#                     print("Connection gave more than 5 errors. Not trying again")
+if not offline:
+    for folder in IMAPFOLDER:
+        print(("Getting messages from server from folder: %s.") % imaputf7decode(folder))
+        retries = 0
+        if ssl:
+            try:
+                get_messages_to_local_maildir(folder, mail)
+            except imaplib.IMAP4_SSL.abort:
+                if retries < 5:
+                    print(("SSL Connection Abort. Trying again (#%i).") % retries)
+                    retries += 1
+                    mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
+                    get_messages_to_local_maildir(folder, mail)
+                else:
+                    print("SSL Connection gave more than 5 errors. Not trying again")
+        else:
+            try:
+                get_messages_to_local_maildir(folder, mail)
+            except imaplib.IMAP4.abort:
+                if retries < 5:
+                    print(("Connection Abort. Trying again (#%i).") % retries)
+                    retries += 1
+                    mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
+                    get_messages_to_local_maildir(folder, mail)
+                else:
+                    print("Connection gave more than 5 errors. Not trying again")
                 
-#         print(("Done with folder: %s.") % imaputf7decode(folder))
-#         print("\n")
+        print(("Done with folder: %s.") % imaputf7decode(folder))
+        print("\n")
 
 
 for folderID in mailFolders:
@@ -1347,8 +914,6 @@ for folderID in mailFolders:
     if not folder["selected"]:
         continue
 
-    # remove("%s/%s/inc" % (maildir_result, folderID))
-    # copy(inc_location, "%s/%s/inc" % (maildir_result, folderID))
     backup_mails_to_html_from_local_maildir(folderID)
     print("\n")
 
