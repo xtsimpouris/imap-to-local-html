@@ -16,25 +16,17 @@ It is always better to use a virtual environment
 ### Screenshots
 
 #### Running the program
-<a href = "http://i.imgur.com/8Uvrk.png"><img src="http://i.imgur.com/8Uvrk.png" width=400 height=400 /></a>
+![Execution](images/01. execution.png)
 
 #### Index page
-<a href = 'http://i.imgur.com/mQOrv8ih.png'><img src="http://i.imgur.com/mQOrv8ih.png" width=400 height=400 /></a>
+![Home page](images/02. Home page.png)
 
 #### Folder Overview page 
-<a href = "http://i.imgur.com/7gWFky1h.png"><img src="http://i.imgur.com/7gWFky1h.png" width=400 height=400 /></a>
+![Folder view](images/03. Folder view.png)
 
 #### Email itself
-<a href = "http://i.imgur.com/0765Xz1.png"><img src="http://i.imgur.com/0765Xz1.png" width=400 height=400 /></a>
+![Email view](images/04. Email view.png)
 
-#### Attachments
-<a href="http://i.imgur.com/jAdGeeM.png"><img src="http://i.imgur.com/jAdGeeM.png" width=400 height=400 /></a>
-
-### Empty Folder
-<a href="http://i.imgur.com/NigeQ9lh.png"><img src="http://i.imgur.com/NigeQ9lh.png" width=400 height=200 /></a>
-
-#### Command Line Client (links2):
-<a href="http://i.imgur.com/gt9nH.png"><img src="http://i.imgur.com/gt9nH.png" width=400 height=400 /></a>
 
 ### Features
 
@@ -42,14 +34,18 @@ It is always better to use a virtual environment
 - Supports multiple IMAP folders
 - Supports text, HTML and multipart email
 - Saves attachments
-- Supports incremental backups
 - Backups to HTML files for easy browsing
 - Small HTML files can be backed up to external medium more easily, and can be sent over the internet more easily.
 - Backs up to Maildir for [easy restoring](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server)
 
 ### Changelog
 
-New in version 6:
+New in version 7:
+(18-12-2021)
+- Refactored to extract mails in different folders per account
+- Support bootstrap view
+
+New in version 6 (up to fork):
 (18-11-2013)
 
 - Add support to download all folders without typing them all out. Using "NoPriv_All" as foldername now downloads all available folders.
@@ -156,8 +152,3 @@ If you enable incremental backup, it will create a text file `nopriv.txt` with t
 ## Info on restoring
 
 Nopriv creates a Maildir folder, which houses all your email. You can restore this maildir folder to an IMAP account either by using the script [linked at the top on this page](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server), or use a mail client like Mutt or Evolution and transport it to an imap account via there.
-
-### More Info:
-
-[https://raymii.org/s/software/Nopriv.py.html](https://raymii.org/s/software/Nopriv.py.html)  
-[https://github.com/RaymiiOrg/NoPriv](https://github.com/RaymiiOrg/NoPriv)

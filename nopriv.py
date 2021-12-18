@@ -23,7 +23,6 @@ from email.utils import parsedate
 import time
 import re
 from math import ceil
-from random import choice
 import os
 import base64
 import cgi
@@ -295,10 +294,6 @@ def returnFooter():
     return response
 
 lastfolder = ""
-def printQuote():
-    quotes = ['Come on, shut off that damn alarm and I promise I\'ll never violate you again.', 'I\'ve become romantically involved with a hologram. If that\'s possible.', 'Listen to me very carefully because I\'m only going to say this once. Coffee - black.', 'Computer, prepare to eject the warp core - authorization Torres omega five nine three!', 'The procedure is quite simple. I\'ll drill an opening into your skull percisely two milimeters in diameter and then use a neuralyte probe to extract a sample of your parietal lobe weighing approximately one gram']
-    return choice(quotes)
-
 class DecodeError(Exception):
     pass
 
@@ -608,8 +603,6 @@ def returnWelcome():
     print("")
     print("Runtime Information:")
     print(sys.version)
-    print("")
-    print(printQuote())
     print("")
 
 
@@ -1026,8 +1019,10 @@ def getMailContent(mail):
         content_of_mail_html = re.sub(r"(?i)TOP: .*?;", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = decodestring(content_of_mail_html)
     
-    h = HTMLParser()
-    return h.unescape(content_of_mail_text), h.unescape(content_of_mail_html), attachments
+    return content_of_mail_text, content_of_mail_html, attachments
+
+    # h = HTMLParser()
+    # return h.unescape(content_of_mail_text), h.unescape(content_of_mail_html), attachments
 
 
 def backup_mails_to_html_from_local_maildir(folder):
@@ -1106,10 +1101,22 @@ def backup_mails_to_html_from_local_maildir(folder):
         fileName = "%s/%s.html" % (mail_folder, mail_id_hash)
         content_of_mail_text, content_of_mail_html, attachments = "", "", []
         error_decoding = ""
+        h = HTMLParser()
+
         try:
             content_of_mail_text, content_of_mail_html, attachments = getMailContent(mail)
         except Exception as e:
-            error_decoding = str(e)
+            error_decoding += "~> Error in getMailContent: %s" % str(e)
+
+        try:
+            content_of_mail_text = h.unescape(content_of_mail_text)
+        except Exception as e:
+            error_decoding += "~> Error decoding TEXT: %s" % str(e)
+
+        try:
+            content_of_mail_html = h.unescape(content_of_mail_html)
+        except Exception as e:
+            error_decoding += "~> Error decoding HTML: %s" % str(e)
 
         data_uri_to_download = "data:text/plain;base64,%s" % base64.b64encode(str(mail))
 
