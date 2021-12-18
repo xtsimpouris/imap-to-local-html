@@ -15,9 +15,9 @@
             {% for mail in mailList %}
                 <tr data-id="{{ mailList[mail].id }}">
                     <td>{{ mailList[mail].date }}</td>
-                    <td>{{ mailList[mail].from }}</td>
-                    <td>{{ mailList[mail].to }}</td>
-                    <td><a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject }}</a></td>
+                    <td>{{ mailList[mail].from|e }}</td>
+                    <td>{{ mailList[mail].to|e }}</td>
+                    <td><a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject|e }}</a></td>
                     <td>{{ mailList[mail].size }}</td>
                     <td>
                         {% if mailList[mail].attachments %}
