@@ -16,16 +16,16 @@ It is always better to use a virtual environment
 ### Screenshots
 
 #### Running the program
-![Execution](images/01. execution.png)
+![Execution](images/01-execution.png)
 
 #### Index page
-![Home page](images/02. Home page.png)
+![Home page](images/02-home-page.png)
 
 #### Folder Overview page 
-![Folder view](images/03. Folder view.png)
+![Folder view](images/03-folder-view.png)
 
 #### Email itself
-![Email view](images/04. Email view.png)
+![Email view](images/04-email-view.png)
 
 
 ### Features
