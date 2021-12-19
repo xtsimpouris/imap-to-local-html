@@ -72,7 +72,7 @@
           <strong>Error decoding:</strong>
         </div>
         <div class="col-md-9">
-          {{ mail.error_decoding }}
+          {{ mail.error_decoding|e }}
         </div>
       </div>
     </li>

@@ -25,12 +25,10 @@ import re
 from math import ceil
 import os
 import base64
-import cgi
 import sys
 import shutil
 import errno
 import datetime
-import fileinput
 import configparser
 from quopri import decodestring
 import getpass
@@ -38,6 +36,7 @@ import getpass
 from jinja2 import Template
 import hashlib
 import sys
+from utils import normalize
 
 # places where the config could be located
 config_file_paths = [ 
@@ -276,14 +275,13 @@ att_count = 0
 last_att_filename = ""
 
 def saveToMaildir(msg, mailFolder):
-    return
     global maildir_raw
 
     mbox = mailbox.Maildir(maildir_raw, factory=mailbox.MaildirMessage, create=True) 
     folder = mbox.add_folder(mailFolder)    
     folder.lock()
     try:
-        message_key = folder.add(msg.encode("utf-8"))
+        message_key = folder.add(msg)
         folder.flush()
 
         maildir_message = folder.get_message(message_key)
@@ -352,14 +350,17 @@ def get_messages_to_local_maildir(mailFolder, mail, startid = 1):
         print("Does the imap folder \"%s\" exists?" % mailFolder)
         return
     
+    print("Copying folder %s" % mailFolder, end="")
     messageList = mdata[0].decode().split()
     for message_id in messageList:
         result, data = mail.fetch(message_id , "(RFC822)")
-        raw_email = decode_string(data[0][1])
-        print('Saving message %5s/%d@%s: %s ~> %s' % (message_id, len(messageList), imaputf7decode(mailFolder), getHeader(raw_email, 'from'), getHeader(raw_email, 'to')))
+        raw_email = data[0][1]
         maildir_folder = mailFolder.replace("/", ".")
         saveToMaildir(raw_email, maildir_folder)
-        
+        print('.', end="")
+        sys.stdout.flush()
+    
+    print("..Done!")        
 
 
 def renderIndexPage():
@@ -532,19 +533,20 @@ def getMailContent(mail):
         if part_transfer_encoding:
             part_transfer_encoding = part_transfer_encoding[0]
 
-        part_decoded_contents = part.get_payload()
-        if part_transfer_encoding == 'quoted-printable':
-            part_decoded_contents = decode_string(decodestring(part_decoded_contents))
-        elif part_transfer_encoding == 'base64':
-            part_decoded_contents = decode_string(base64.b64decode(part_decoded_contents.encode()))
+        if part_content_type in ('text/plain', 'text/html'):
+            part_decoded_contents = part.get_payload(decode=True)
+            if part_transfer_encoding is None or part_transfer_encoding == "binary":
+                part_transfer_encoding = part_charset[0]
 
-        if part_content_type == 'text/plain':
-            content_of_mail_text += part_decoded_contents
-            continue
+            part_decoded_contents = normalize(part_decoded_contents, part_transfer_encoding)
 
-        if part_content_type == 'text/html':
-            content_of_mail_html += part_decoded_contents
-            continue
+            if part_content_type == 'text/plain':
+                content_of_mail_text += part_decoded_contents
+                continue
+
+            if part_content_type == 'text/html':
+                content_of_mail_html += part_decoded_contents
+                continue
     
         # Attachment
         if not part.get('Content-Disposition') is None:
@@ -571,7 +573,6 @@ def getMailContent(mail):
         content_of_mail_text = re.sub(r"(?i)<!DOCTYPE.*?>", "", content_of_mail_text, flags=re.DOTALL)
         content_of_mail_text = re.sub(r"(?i)POSITION: absolute;", "", content_of_mail_text, flags=re.DOTALL)
         content_of_mail_text = re.sub(r"(?i)TOP: .*?;", "", content_of_mail_text, flags=re.DOTALL)
-        content_of_mail_text = content_of_mail_text
         
 
     if content_of_mail_html:
@@ -580,7 +581,6 @@ def getMailContent(mail):
         content_of_mail_html = re.sub(r"(?i)<!DOCTYPE.*?>", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)POSITION: absolute;", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)TOP: .*?;", "", content_of_mail_html, flags=re.DOTALL)
-        content_of_mail_html = content_of_mail_html
     
     return content_of_mail_text, content_of_mail_html, attachments
 
@@ -600,10 +600,12 @@ def backup_mails_to_html_from_local_maildir(folder):
         renderPage(
             "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
             headerTitle="Folder %s" % mailFolders[folder]["title"],
+            linkPrefix="..",
             content=renderTemplate(
                 "page-mail-list.tpl",
                 None,
                 mailList=mailList,
+                linkPrefix="..",
             )
         )
 
@@ -624,6 +626,7 @@ def backup_mails_to_html_from_local_maildir(folder):
         mail_id = mail.get('Message-Id')
         mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
+        mail_raw = normalize(mail.as_bytes())
 
         try:
             os.makedirs("%s/%s" % (maildir_result, mail_folder))
@@ -634,12 +637,17 @@ def backup_mails_to_html_from_local_maildir(folder):
         content_of_mail_text, content_of_mail_html, attachments = "", "", []
         error_decoding = ""
 
-        # try:
-        content_of_mail_text, content_of_mail_html, attachments = getMailContent(mail)
-        # except Exception as e:
-        #     error_decoding += "~> Error in getMailContent: %s" % str(e)
+        try:
+            content_of_mail_text, content_of_mail_html, attachments = getMailContent(mail)
+        except Exception as e:
+            error_decoding += "~> Error in getMailContent: %s" % str(e)
+            raise(e)
 
-        data_uri_to_download = "data:text/plain;base64,%s" % base64.b64encode(str(mail).encode())
+        data_uri_to_download = ''
+        try:
+            data_uri_to_download = "data:text/plain;base64,%s" % base64.b64encode(mail_raw.encode())
+        except Exception as e:
+            error_decoding += "~> Error in data_uri_to_download: %s" % str(e)
 
         content_default = "raw"
         if content_of_mail_text:
@@ -647,19 +655,20 @@ def backup_mails_to_html_from_local_maildir(folder):
         if content_of_mail_html:
             content_default = "html"
 
+        # print(mail.__dir__())
         mailList[mail_id] = {
             "id": mail_id,
             "from": mail_from,
             "to": mail_to,
             "subject": mail_subject,
             "date": str(time.strftime("%Y-%m-%d %H:%m", mail_date)),
-            "size": len(str(mail)),
+            "size": len(mail_raw),
             "file": fileName,
             "link": "/%s" % fileName,
             "content": {
                 "html": content_of_mail_html,
                 "text": content_of_mail_text,
-                "raw": str(mail),
+                "raw": mail_raw,
                 "default": content_default,
             },
             "download": {
@@ -719,6 +728,9 @@ def backup_mails_to_html_from_local_maildir(folder):
     print("Done!")
 
 returnWelcome()
+
+# remove("%s" % maildir_raw)
+# os.mkdir(maildir_raw)
 
 if not offline:
     mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)

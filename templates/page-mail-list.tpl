@@ -31,7 +31,7 @@
                     </td>
                 </tr>
             {% else %}
-                <tr><td colspan="5">Folder is empty</td></tr>
+                <tr><td colspan="7">Folder is empty</td></tr>
             {% endfor %}
         </tbody>
     </table>
