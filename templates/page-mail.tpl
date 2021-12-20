@@ -5,7 +5,7 @@
         <strong>From:</strong>
       </div>
       <div class="col-md-9">
-        {{ mail.from }}
+        {{ mail.from|e }}
       </div>
     </div>
   </li>
@@ -15,7 +15,7 @@
         <strong>To:</strong>
       </div>
       <div class="col-md-9">
-        {{ mail.from }}
+        {{ mail.to|e }}
       </div>
     </div>
   </li>
@@ -25,7 +25,7 @@
         <strong>Subject:</strong>
       </div>
       <div class="col-md-9">
-        {{ mail.subject }}
+        {{ mail.subject|e }}
       </div>
     </div>
   </li>
@@ -58,7 +58,7 @@
         <div class="col-md-9">
           <ol class="attachments">
             {% for attachment in mail.attachments %}
-              <li><a href="{{ linkPrefix }}/{{ attachment.path }}" target="_blank">{{ attachment.filename }}</a> ({{ attachment.size }} bytes, {{ attachment.mimetype }})</li>
+              <li><a href="{{ linkPrefix }}/{{ attachment.path }}" target="_blank">{{ attachment.title }}</a> ({{ attachment.size }} bytes, {{ attachment.mimetype }})</li>
             {% endfor %}
           </ol>
         </div>
@@ -72,7 +72,7 @@
           <strong>Error decoding:</strong>
         </div>
         <div class="col-md-9">
-          {{ mail.error_decoding }}
+          {{ mail.error_decoding|e }}
         </div>
       </div>
     </li>
@@ -121,7 +121,7 @@
       {% if mail.download %}
         <div class="float-right"><a href="{{ mail.download.content }}" download="{{ mail.download.filename }}">Download as EML file</a></div>
       {% endif %}
-      <pre>{{ mail.content.raw }}</pre>
+      <pre>{{ mail.content.raw|e }}</pre>
     </div>
   </div>
 </div>

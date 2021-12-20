@@ -1,3 +1,5 @@
 nopriv.ini
 mailbox*
-env
+env*
+
+__pycache__

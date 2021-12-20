@@ -2,8 +2,6 @@
 
 This is a python script to backup any IMAP capable email account to a bowsable HTML archive and a Maildir folder. Not one huge file (mbox), only needing a web browser to view and no proprietary code, so you can make sure I won't steal your password. 
 
-Fork from [RaymiiOrg/NoPriv](https://github.com/RaymiiOrg/NoPriv)
-
 ### Virtual environment
 It is always better to use a virtual environment
 1. Create one with python 2.x, for example `virtualenv --python=/usr/bin/python env`
@@ -30,6 +28,9 @@ It is always better to use a virtual environment
 
 ### Features
 
+- Python 3
+- [Jinja2](https://jinja2docs.readthedocs.io/en/stable/) template for HTML export
+- [Bootstrap v4.4.1](https://getbootstrap.com/)
 - Works with any IMAP/IMAPS account
 - Supports multiple IMAP folders
 - Supports text, HTML and multipart email
@@ -45,7 +46,7 @@ New in version 7:
 - Refactored to extract mails in different folders per account
 - Support bootstrap view
 
-New in version 6 (up to fork):
+New in version 6 (up to fork from [RaymiiOrg/NoPriv](https://github.com/RaymiiOrg/NoPriv)):
 (18-11-2013)
 
 - Add support to download all folders without typing them all out. Using "NoPriv_All" as foldername now downloads all available folders.
