@@ -25,7 +25,6 @@ import re
 from math import ceil
 import os
 import base64
-import sys
 import shutil
 import errno
 import datetime
@@ -36,7 +35,9 @@ import getpass
 from jinja2 import Template
 import hashlib
 import sys
-from utils import normalize
+
+from utils import normalize, removeDir, copyDir
+import remote2local
 
 # places where the config could be located
 config_file_paths = [ 
@@ -89,21 +90,8 @@ try:
 except:
     pass
 
-enable_html = True
-CreateMailDir = True
-messages_per_overview_page = 50
 mailFolders = None
-
 inc_location = "inc"
-
-def connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD):
-    if ssl is True:
-        mail = imaplib.IMAP4_SSL(IMAPSERVER)
-    if ssl is False:
-        mail = imaplib.IMAP4(IMAPSERVER)
-    mail.login(IMAPLOGIN, IMAPPASSWORD)
-    mail.enable("UTF8=ACCEPT")
-    return mail
 
 maildir = 'mailbox.%s@%s' % (IMAPLOGIN, IMAPSERVER)
 if not os.path.exists(maildir):
@@ -227,9 +215,9 @@ def getMailFolders():
         fileName = "%s/index.html" % ifo
         mailFolders[ifo] = {
             "id": ifo,
-            "title": imaputf7decode(parts[len(parts) - 1]),
+            "title": normalize(parts[len(parts) - 1], "utf7"),
             "parent": '.'.join(parts[:-1]),
-            "selected": ifo in IMAPFOLDER or imaputf7decode(ifo) in IMAPFOLDER,
+            "selected": ifo in IMAPFOLDER or normalize(ifo, "utf7") in IMAPFOLDER,
             "folder": ifo,
             "file": fileName,
             "link": "/%s" % fileName,
@@ -258,45 +246,10 @@ def getMailFolders():
     return mailFolders
 
 
-class DecodeError(Exception):
-    pass
-
-def decode_string(string):
-    for charset in ("utf-8", 'latin-1', 'iso-8859-1', 'us-ascii', 'windows-1252','us-ascii'):
-        try:
-            return string.decode(charset) #  cgi.escape(unicode(string, charset)).encode('ascii', 'xmlcharrefreplace')
-        except Exception:
-            continue
-    raise DecodeError("Could not decode string")
-
 attCount = 0
 lastAttName = ""
 att_count = 0
 last_att_filename = ""
-
-def saveToMaildir(msg, mailFolder):
-    global maildir_raw
-
-    mbox = mailbox.Maildir(maildir_raw, factory=mailbox.MaildirMessage, create=True) 
-    folder = mbox.add_folder(mailFolder)    
-    folder.lock()
-    try:
-        message_key = folder.add(msg)
-        folder.flush()
-
-        maildir_message = folder.get_message(message_key)
-        try:
-            message_date_epoch = time.mktime(parsedate(decode_header(maildir_message.get("Date"))[0][0]))
-        except TypeError as typeerror:
-            message_date_epoch = time.mktime((2000, 1, 1, 1, 1, 1, 1, 1, 0))
-        maildir_message.set_date(message_date_epoch)
-        maildir_message.add_flag("s")
-
-
-    finally:
-        folder.unlock()
-        folder.close()
-        mbox.close()
 
 
 def getLogFile():
@@ -317,50 +270,6 @@ def getHeader(raw, header):
             response = email.utils.parseaddr(response)[1]
 
         return response
-
-def b64padanddecode(b):
-    """Decode unpadded base64 data"""
-    b+=(-len(b)%4)*'=' #base64 padding (if adds '===', no valid padding anyway)
-    return base64.b64decode(b,altchars='+,').decode('utf-16-be')
-
-def imaputf7decode(s):
-    """Decode a string encoded according to RFC2060 aka IMAP UTF7.
-    Minimal validation of input, only works with trusted data"""
-
-    lst=s.split('&')
-    out=lst[0]
-    for e in lst[1:]:
-        u,a=e.split('-',1) #u: utf16 between & and 1st -, a: ASCII chars folowing it
-        if u=='' : out+='&'
-        else: out+=b64padanddecode(u)
-        out+=a
-    return out
-
-
-def get_messages_to_local_maildir(mailFolder, mail, startid = 1):
-    global IMAPLOGIN
-    print("Selecting folder %s" % mailFolder, end="")
-    response = mail.select(mail._quote(mailFolder), readonly=True)
-    print("..Done!")
-
-    try:
-        typ, mdata = mail.search(None, "ALL")
-    except Exception as imaperror:
-        print("Error in IMAP Query: %s." % imaperror)
-        print("Does the imap folder \"%s\" exists?" % mailFolder)
-        return
-    
-    print("Copying folder %s" % mailFolder, end="")
-    messageList = mdata[0].decode().split()
-    for message_id in messageList:
-        result, data = mail.fetch(message_id , "(RFC822)")
-        raw_email = data[0][1]
-        maildir_folder = mailFolder.replace("/", ".")
-        saveToMaildir(raw_email, maildir_folder)
-        print('.', end="")
-        sys.stdout.flush()
-    
-    print("..Done!")        
 
 
 def renderIndexPage():
@@ -400,103 +309,28 @@ def renderIndexPage():
     )
 
 
-def allFolders(IMAPFOLDER_ORIG, mail):
-    response = []
-    if len(IMAPFOLDER_ORIG) == 1 and IMAPFOLDER_ORIG[0] == "NoPriv_All":
-        maillist = mail.list()
-        for imapFolder in sorted(maillist[1]):
-            imapFolder = imapFolder.decode()
-            imapFolder = re.sub(r"(?i)\(.*\)", "", imapFolder, flags=re.DOTALL)
-            imapFolder = re.sub(r"(?i)\".\"", "", imapFolder, flags=re.DOTALL)
-            imapFolder = re.sub(r"(?i)\"", "", imapFolder, flags=re.DOTALL)
-            imapFolder = imapFolder.strip()
-            response.append(imapFolder)
-    else:
-        response = IMAPFOLDER_ORIG
-    return response
-
 def returnImapFolders(available=True, selected=True):
     response = ""
     if available:
         maillist = mail.list()
         for ifo in sorted(maillist[1]):
-            ifo = ifo.decode()
+            ifo = ifo.decode().strip()
             ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
             ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
             ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
-            response += "- %s \n" % ifo
+            response += "- %s (%s) \n" % (normalize(ifo, "utf7"), ifo)
         response += "\n"
 
     if selected:
         response += "Selected folders:\n"
         for sfo in IMAPFOLDER:
-            response += "- %s \n" % sfo
+            sfo = sfo.strip()
+            response += "- %s (%s) \n" % (normalize(sfo, "utf7"), sfo)
 
     response += "\n"
 
     return response
 
-
-def returnMenu(folderImIn, inDate = False, index = False, vertical = False, activeItem = ""):
-    global IMAPFOLDER
-
-    folder_number = folderImIn.split('/')
-    current_folder = folder_number
-    folder_number = len(folder_number)
-    dotdotslash = "./"
-
-    if vertical:
-        response = '<ul class="nav nav-pills nav-stacked">'
-    else:
-        response = '<ul class="nav nav-pills">'
-
-    if not index:
-        for _ in range(int(folder_number)):
-            dotdotslash += ""
-        if inDate:
-            dotdotslash += "../"
-    if index:
-        response += "\t<li class=\"active\"><a href=\"" + dotdotslash + "/index.html\">Index</a></li>\n"
-    else:
-        response += "\t<li><a href=\"" + dotdotslash + "/index.html\">Index</a></li>\n"
-
-
-    for folder in IMAPFOLDER:
-        if folder == activeItem:
-            response += "\t<li class=\"active\"><a href=\"" + dotdotslash + folder + "/email-report-1.html\">" + imaputf7decode(folder).encode('utf-8') + "</a></li>\n"
-        else:
-            response += "\t<li><a href=\"" + dotdotslash + folder + "/email-report-1.html\">" + imaputf7decode(folder).encode('utf-8') + "</a></li>\n"
-
-    if not index:
-        response += "\t<li><a href=\"javascript:history.go(-1)\">Back</a></li>\n"
-    else:
-        response += "\t<li><a href=\"https://raymii.org\">Raymii.org</a></li>\n"
-    response += "\n</ul>\n<hr />\n"
-
-    return response
-
-def remove(src):
-    if os.path.exists(src):
-        shutil.rmtree(src)
-
-def copy(src, dst):
-    try:
-        shutil.copytree(src, dst)
-    except OSError as exc:
-        if exc.errno == errno.ENOTDIR:
-            shutil.copy(src, dst)
-        elif exc.errno == errno.EEXIST:
-            print("File %s already exists." % src)
-        else: raise
-
-def move(src, dst):
-        shutil.move(src, dst)
-
-def moveMailDir(maildir):
-    print("Adding timestamp to Maildir.")
-    now = datetime.datetime.now()
-    maildirfilename = "Maildir." + str(now).replace("/", ".").replace(" ", ".").replace("-", ".").replace(":", ".")
-    move(maildir, maildirfilename)
 
 def returnWelcome():
     print("########################################################")
@@ -520,9 +354,6 @@ def getMailContent(mail):
     content_of_mail_text = ""
     content_of_mail_html = ""
     attachments = []
-
-    # ['_headers', 'get_charset', 'get_all', 'add_header', 'replace_header', 'get_content_type', 'get_content_maintype', 'get_content_subtype', 'get_default_type', 'set_default_type', '_get_params_preserve', 'get_params', 'get_param', 'set_param', 'del_param', 'set_type', 'get_filename', 'get_boundary', 'set_boundary', 'get_content_charset', 'get_charsets', 'get_content_disposition', 'walk', '__dict__', '__weakref__', '__slotnames__', '__repr__', '__hash__', '__getattribute__', '__setattr__', '__delattr__', '__lt__', '__le__', '__eq__', '__ne__', '__gt__', '__ge__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__', '__init_subclass__', '__format__', '__sizeof__', '__dir__', '__class__']
-    # Content-Transfer-Encoding
 
     for part in mail.walk():
         part_content_maintype = part.get_content_maintype()
@@ -586,7 +417,10 @@ def getMailContent(mail):
 
 
 def backup_mails_to_html_from_local_maildir(folder):
-    print("Processing folder: %s" % imaputf7decode(folderID), end="")
+    """
+    Creates HTML files and folder index from a mailbox folder
+    """
+    print("Processing folder: %s" % normalize(folderID, "utf7"), end="")
 
     global maildir_raw
 
@@ -613,7 +447,12 @@ def backup_mails_to_html_from_local_maildir(folder):
         return
 
     print("(%d)" % len(maildir_folder), end="")
+    sofar = 0
     for mail in maildir_folder:
+        mail_id = mail.get('Message-Id')
+        if mail_id in mailList:
+            continue
+
         mail_subject = str(make_header(decode_header(mail.get('Subject'))))
 
         if not mail_subject:
@@ -623,7 +462,6 @@ def backup_mails_to_html_from_local_maildir(folder):
         mail_to = str(make_header(decode_header(mail.get('To'))))
         mail_date = email.utils.parsedate(decode_header(mail.get('Date'))[0][0])
 
-        mail_id = mail.get('Message-Id')
         mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
         mail_raw = normalize(mail.as_bytes())
@@ -655,7 +493,6 @@ def backup_mails_to_html_from_local_maildir(folder):
         if content_of_mail_html:
             content_default = "html"
 
-        # print(mail.__dir__())
         mailList[mail_id] = {
             "id": mail_id,
             "from": mail_from,
@@ -707,7 +544,11 @@ def backup_mails_to_html_from_local_maildir(folder):
         del mailList[mail_id]["download"]
         mailList[mail_id]["attachments"] = len(mailList[mail_id]["attachments"])
 
-        print(".", end="")
+        sofar += 1
+        if sofar % 10 == 0:
+            print(sofar, end="")
+        else:
+            print('.', end="")
         sys.stdout.flush()
     print("Done!")
 
@@ -729,48 +570,43 @@ def backup_mails_to_html_from_local_maildir(folder):
 
 returnWelcome()
 
-# remove("%s" % maildir_raw)
-# os.mkdir(maildir_raw)
-
 if not offline:
-    mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-    IMAPFOLDER = allFolders(IMAPFOLDER_ORIG, mail)
+    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD, ssl)
+    IMAPFOLDER = remote2local.getAllFolders(IMAPFOLDER_ORIG, mail)
     print(returnImapFolders())
-    
-renderIndexPage()
-remove("%s/inc" % maildir_result)
-copy(inc_location, "%s/inc" % maildir_result)
 
-if not offline:
     for folder in IMAPFOLDER:
-        print(("Getting messages from server from folder: %s.") % imaputf7decode(folder))
+        print(("Getting messages from server from folder: %s.") % normalize(folder, "utf7"))
         retries = 0
         if ssl:
             try:
-                get_messages_to_local_maildir(folder, mail)
+                remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
             except imaplib.IMAP4_SSL.abort:
                 if retries < 5:
                     print(("SSL Connection Abort. Trying again (#%i).") % retries)
                     retries += 1
-                    mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                    get_messages_to_local_maildir(folder, mail)
+                    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
+                    remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
                 else:
                     print("SSL Connection gave more than 5 errors. Not trying again")
         else:
             try:
-                get_messages_to_local_maildir(folder, mail)
+                remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
             except imaplib.IMAP4.abort:
                 if retries < 5:
                     print(("Connection Abort. Trying again (#%i).") % retries)
                     retries += 1
-                    mail = connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                    get_messages_to_local_maildir(folder, mail)
+                    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
+                    remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
                 else:
                     print("Connection gave more than 5 errors. Not trying again")
                 
-        print(("Done with folder: %s.") % imaputf7decode(folder))
+        print(("Done with folder: %s.") % normalize(folder, "utf7"))
         print("\n")
 
+renderIndexPage()
+removeDir("%s/inc" % maildir_result)
+copyDir(inc_location, "%s/inc" % maildir_result)
 
 for folderID in mailFolders:
     folder = mailFolders[folderID] 
