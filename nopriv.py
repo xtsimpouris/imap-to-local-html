@@ -25,18 +25,16 @@ import re
 from math import ceil
 import os
 import base64
-import shutil
-import errno
 import datetime
 import configparser
 from quopri import decodestring
 import getpass
 
-from jinja2 import Template
+from jinja2 import Template, Environment
 import hashlib
 import sys
 
-from utils import normalize, removeDir, copyDir
+from utils import normalize, removeDir, copyDir, humansize
 import remote2local
 
 # places where the config could be located
@@ -129,7 +127,10 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     with open("templates/%s" % templateFrom, "r") as f:
         templateContents = f.read()
 
-    template = Template(templateContents)
+    env = Environment()
+    env.filters["humansize"] = humansize
+
+    template = env.from_string(templateContents)
     result = template.render(**kwargs)
     if saveTo:
         with open(saveTo, "w") as f:

@@ -18,7 +18,7 @@
                     <td>{{ mailList[mail].from|e }}</td>
                     <td>{{ mailList[mail].to|e }}</td>
                     <td><a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject|e }}</a></td>
-                    <td>{{ mailList[mail].size }}</td>
+                    <td>{{ mailList[mail].size|humansize }}</td>
                     <td>
                         {% if mailList[mail].attachments %}
                             <i class="bi bi-paperclip" title="{{ mailList[mail].attachments }} attachment(s)"></i>

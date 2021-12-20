@@ -92,3 +92,17 @@ def copyDir(src, dst):
         elif exc.errno == errno.EEXIST:
             print("File %s already exists." % src)
         else: raise
+
+
+suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+def humansize(nbytes):
+    """
+    Idea taken from
+    https://stackoverflow.com/a/14996816
+    """
+    i = 0
+    while nbytes >= 1024 and i < len(suffixes)-1:
+        nbytes /= 1024.
+        i += 1
+    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
+    return '%s %s' % (f, suffixes[i])
