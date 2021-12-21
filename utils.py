@@ -1,5 +1,7 @@
 import base64
 import chardet
+import html
+import re
 import errno
 import os
 from quopri import decodestring
@@ -64,7 +66,12 @@ def normalize(unknown, encoding = None):
         if estimate["encoding"] == "utf-8":
             return unknown.decode()
 
-        return unknown.decode(estimate["encoding"])
+        try:
+            return unknown.decode(estimate["encoding"])
+        except Exception as e:
+            # Maybe https://github.com/SSilence/php-imap-client/issues/112 ?
+            if estimate["encoding"].lower() == "Windows-1254".lower():
+                return unknown.decode()
 
     if not isinstance(unknown, str):
         unknown = unknown.decode()
@@ -106,3 +113,27 @@ def humansize(nbytes):
         i += 1
     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
     return '%s %s' % (f, suffixes[i])
+
+
+def simplifyEmailHeader(header):
+    """
+    Tries to minimize email header
+    """
+    emails = re.findall("(\"?<?\"?([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\"?>?\"?)", header)
+    already = []
+    result = header
+    rest = header
+    for mail in emails:
+        if mail in already:
+            continue
+
+        already.append(mail[0])
+        toReplace = '<i class="bi bi-envelope-fill" title="%s"></i><span class="hide">%s</span>' % (mail[1], mail[1])
+
+        result = result.replace(mail[0], toReplace)
+        rest = rest.replace(mail[0], '').strip().strip(",").strip()
+    
+    if rest == "":
+        return html.escape(header)
+    
+    return result

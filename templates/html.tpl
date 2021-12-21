@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{linkPrefix}}/inc/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{linkPrefix}}/inc/bootstrap-icons/bootstrap-icons.css">
     <link rel="stylesheet" href="{{linkPrefix}}/inc/css/dashboard.css">
+    <link rel="stylesheet" href="{{linkPrefix}}/inc/datatables/jquery.dataTables.min.css">
 
     <title>{{ title }}</title>
     <meta name="generator" content="IMAP to local HTML, https://github.com/xtsimpouris/imap-to-local-html">
@@ -37,5 +38,11 @@
     <script src="{{linkPrefix}}/inc/js/jquery-3.6.0.min.js"></script>
     <script src="{{linkPrefix}}/inc/js/popper.min.js"></script>
     <script src="{{linkPrefix}}/inc/js/bootstrap.min.js"></script>
+    <script src="{{linkPrefix}}/inc/datatables/jquery.dataTables.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready( function () {
+        $('.datatable').DataTable();
+      });
+    </script>
   </body>
 </html>

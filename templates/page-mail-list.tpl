@@ -1,5 +1,5 @@
-<div class="table-responsive">
-    <table class="table table-striped table-sm">
+<div>
+    <table class="datatable table table-striped table-bordered">
         <thead>
             <tr>
                 <th>Date</th>
@@ -8,25 +8,24 @@
                 <th>Subject</th>
                 <th>Size</th>
                 <th></th>
-                <th></th>
             </tr>
         </thead>
         <tbody>
             {% for mail in mailList %}
                 <tr data-id="{{ mailList[mail].id }}">
-                    <td>{{ mailList[mail].date }}</td>
-                    <td>{{ mailList[mail].from|e }}</td>
-                    <td>{{ mailList[mail].to|e }}</td>
-                    <td><a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject|e }}</a></td>
-                    <td>{{ mailList[mail].size|humansize }}</td>
-                    <td>
-                        {% if mailList[mail].attachments %}
-                            <i class="bi bi-paperclip" title="{{ mailList[mail].attachments }} attachment(s)"></i>
-                        {% endif %}
-                    </td>
+                    <td class="align-center"><span class="nobr">{{ mailList[mail].date }}</span></td>
+                    <td>{{ mailList[mail].from|simplifyEmailHeader }}</td>
+                    <td>{{ mailList[mail].to|simplifyEmailHeader }}</td>
                     <td>
                         {% if mailList[mail].error_decoding %}
                             <i class="bi bi-exclamation-octagon btn-outline-danger" title="{{ mailList[mail].error_decoding }}"></i>
+                        {% endif %}
+                        <a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject|e }}</a>
+                    </td>
+                    <td class="align-right" data-order="{{ mailList[mail].size }}"><span class="nobr">{{ mailList[mail].size|humansize }}<span></td>
+                    <td class="align-center">
+                        {% if mailList[mail].attachments %}
+                            <i class="bi bi-paperclip" title="{{ mailList[mail].attachments }} attachment(s)"></i>
                         {% endif %}
                     </td>
                 </tr>

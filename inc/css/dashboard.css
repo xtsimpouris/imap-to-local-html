@@ -141,3 +141,19 @@ ol.attachments {
   border-color: transparent;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, .25);
 }
+
+.hide {
+  display: none;
+}
+
+.nobr {
+  white-space: nowrap;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-right {
+  text-align: right;
+}

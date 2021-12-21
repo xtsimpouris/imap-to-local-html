@@ -34,7 +34,7 @@ from jinja2 import Template, Environment
 import hashlib
 import sys
 
-from utils import normalize, removeDir, copyDir, humansize
+from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader
 import remote2local
 
 # places where the config could be located
@@ -80,14 +80,7 @@ try:
 except:
     pass
 
-offline = False
-try:
-    offline_value = config.get('nopriv', 'offline')
-    if offline_value in yes_flags: 
-        offline = True
-except:
-    pass
-
+mail = None
 mailFolders = None
 inc_location = "inc"
 
@@ -129,6 +122,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
 
     env = Environment()
     env.filters["humansize"] = humansize
+    env.filters["simplifyEmailHeader"] = simplifyEmailHeader
 
     template = env.from_string(templateContents)
     result = template.render(**kwargs)
@@ -199,6 +193,9 @@ def getMailFolders():
     global mailFolders
 
     if not mailFolders is None:
+        return mailFolders
+
+    if not mail:
         return mailFolders
 
     mailFolders = {}
@@ -278,7 +275,6 @@ def renderIndexPage():
     global IMAPLOGIN
     global IMAPSERVER
     global ssl
-    global offline
     now = datetime.datetime.now()
 
     allInfo = []
@@ -465,7 +461,13 @@ def backup_mails_to_html_from_local_maildir(folder):
 
         mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
-        mail_raw = normalize(mail.as_bytes())
+        mail_raw = ""
+        error_decoding = ""
+
+        try:
+            mail_raw = normalize(mail.as_bytes())
+        except Exception as e:
+            error_decoding += "~> Error in mail.as_bytes(): %s" % str(e)
 
         try:
             os.makedirs("%s/%s" % (maildir_result, mail_folder))
@@ -474,13 +476,11 @@ def backup_mails_to_html_from_local_maildir(folder):
 
         fileName = "%s/%s.html" % (mail_folder, mail_id_hash)
         content_of_mail_text, content_of_mail_html, attachments = "", "", []
-        error_decoding = ""
 
         try:
             content_of_mail_text, content_of_mail_html, attachments = getMailContent(mail)
         except Exception as e:
             error_decoding += "~> Error in getMailContent: %s" % str(e)
-            raise(e)
 
         data_uri_to_download = ''
         try:
@@ -493,6 +493,18 @@ def backup_mails_to_html_from_local_maildir(folder):
             content_default = "text"
         if content_of_mail_html:
             content_default = "html"
+
+        attachment_count = 0
+        for attachment in attachments:
+            attachment_count += 1
+            attachment["path"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["filename"])
+            with open("%s/%s" % (maildir_result, attachment["path"]), 'wb') as att_file:
+                try:
+                    att_file.write(attachment["content"])
+                except Exception as e:
+                    att_file.write("Error writing attachment: " + str(e) + ".\n")
+                    error_decoding += "~> Error writing attachment: %s" % str(e)
+                    print("Error writing attachment: " + str(e) + ".\n")
 
         mailList[mail_id] = {
             "id": mail_id,
@@ -516,17 +528,6 @@ def backup_mails_to_html_from_local_maildir(folder):
             "attachments": attachments,
             "error_decoding": error_decoding,
         }
-
-        attachment_count = 0
-        for attachment in attachments:
-            attachment_count += 1
-            attachment["path"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["filename"])
-            with open("%s/%s" % (maildir_result, attachment["path"]), 'wb') as att_file:
-                try:
-                    att_file.write(attachment["content"])
-                except Exception as e:
-                    att_file.write("Error writing attachment: " + str(e) + ".\n")
-                    print("Error writing attachment: " + str(e) + ".\n")
 
         renderPage(
             "%s/%s" % (maildir_result, mailList[mail_id]["file"]),
@@ -571,39 +572,39 @@ def backup_mails_to_html_from_local_maildir(folder):
 
 returnWelcome()
 
-if not offline:
-    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD, ssl)
-    IMAPFOLDER = remote2local.getAllFolders(IMAPFOLDER_ORIG, mail)
-    print(returnImapFolders())
 
-    for folder in IMAPFOLDER:
-        print(("Getting messages from server from folder: %s.") % normalize(folder, "utf7"))
-        retries = 0
-        if ssl:
-            try:
+mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD, ssl)
+IMAPFOLDER = remote2local.getAllFolders(IMAPFOLDER_ORIG, mail)
+print(returnImapFolders())
+
+for folder in IMAPFOLDER:
+    print(("Getting messages from server from folder: %s.") % normalize(folder, "utf7"))
+    retries = 0
+    if ssl:
+        try:
+            remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+        except imaplib.IMAP4_SSL.abort:
+            if retries < 5:
+                print(("SSL Connection Abort. Trying again (#%i).") % retries)
+                retries += 1
+                mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
                 remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
-            except imaplib.IMAP4_SSL.abort:
-                if retries < 5:
-                    print(("SSL Connection Abort. Trying again (#%i).") % retries)
-                    retries += 1
-                    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                    remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
-                else:
-                    print("SSL Connection gave more than 5 errors. Not trying again")
-        else:
-            try:
+            else:
+                print("SSL Connection gave more than 5 errors. Not trying again")
+    else:
+        try:
+            remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+        except imaplib.IMAP4.abort:
+            if retries < 5:
+                print(("Connection Abort. Trying again (#%i).") % retries)
+                retries += 1
+                mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
                 remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
-            except imaplib.IMAP4.abort:
-                if retries < 5:
-                    print(("Connection Abort. Trying again (#%i).") % retries)
-                    retries += 1
-                    mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                    remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
-                else:
-                    print("Connection gave more than 5 errors. Not trying again")
-                
-        print(("Done with folder: %s.") % normalize(folder, "utf7"))
-        print("\n")
+            else:
+                print("Connection gave more than 5 errors. Not trying again")
+            
+    print(("Done with folder: %s.") % normalize(folder, "utf7"))
+    print("\n")
 
 renderIndexPage()
 removeDir("%s/inc" % maildir_result)
