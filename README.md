@@ -2,15 +2,6 @@
 
 This is a python script to backup any IMAP capable email account to a bowsable HTML archive and a Maildir folder. Not one huge file (mbox), only needing a web browser to view and no proprietary code, so you can make sure I won't steal your password. 
 
-### Virtual environment
-It is always better to use a virtual environment
-1. Create one with python 2.x, for example `virtualenv --python=/usr/bin/python env`
-2. Get into it, for example `. env/bin/activate`
-3. Install dependencies from `requirements.txt`, for example `pip install -r requirements.txt`
-4. Execute main program, for example `python nopriv.py`
-4. Get out from the virtual environment, for example `deactivate`
-
-
 ### Screenshots
 
 #### Running the program
@@ -33,6 +24,7 @@ It is always better to use a virtual environment
 - [Bootstrap v4.4.1](https://getbootstrap.com/)
 - Works with any IMAP/IMAPS account
 - Supports multiple IMAP folders
+- Tries its best to handle many encodings. `chardet` is also comes into play to try and identify missing cases
 - Supports text, HTML and multipart email
 - Saves attachments
 - Backups to HTML files for easy browsing
@@ -40,6 +32,11 @@ It is always better to use a virtual environment
 - Backs up to Maildir for [easy restoring](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server)
 
 ### Changelog
+
+New in version 8:
+(20-12-2021)
+- Python 3 support
+- Tries its best to handle many encodings
 
 New in version 7:
 (18-12-2021)
@@ -88,7 +85,7 @@ New in version 2:
 
 1. Clone the repository:
 
-    git clone git://github.com/RaymiiOrg/NoPriv.git
+    git clone https://github.com/xtsimpouris/imap-to-local-html
 
 2. Set up your login details, imap server and ssl:
 
@@ -102,11 +99,12 @@ Edit the `nopriv.ini` file with your IMAP server, login and password:
     
     #optional
     ssl = true
-    incremental_backup = true
 
 If you want to use SSL to connect to IMAP, or want to use incremental backups, enable or disable the options.
 
 **If you want to backup all folders, enter `NoPriv_All` as imap_folder.**
+
+If you do not all your folder names, execute python script and checkout the list of folders
 
 
 `Nopriv.ini` can be in the following locations:
@@ -119,37 +117,37 @@ If you want to use SSL to connect to IMAP, or want to use incremental backups, e
 
 If you use gmail and want to backup all your email, use the "[Gmail]/All Mail" folder. It might be named different if you use another locale, for me with a Dutch gmail account it is named "[Gmail]/Alle Berichten".
 
-3. Execute the script:
+3. Create a virtual environment and install dependences. It is always better to use a virtual environment
+    1. Create one with python 3.x, for example `python3 -m venv env`
+    2. Get into it, for example `. env/bin/activate`
+    3. Install dependencies from `requirements.txt`, for example `pip install -r requirements.txt`
+    4. Execute main program, for example `python nopriv.py`
+    5. Get out from the virtual environment, for example `deactivate`
 
-    python ./nopriv.py
+4. Execute the script:
 
-4. Browse the generated backup:
+    `python ./nopriv.py`
+
+5. Browse the generated backup:
 
 Open the file `index.html` in your browser. There are all your folders and emails.
 
 If you only have a console, it works just fine in Links2 (see above screenshot):
     
-    links2 ./index.html
+    `links2 ./index.html`
 
 
 ### Requirements
 
-Python 2.7
+Python 3
 
-Running debian 6 which has python 2.6.6? [See here how to install python 2.7 on debian 6.](https://raymii.org/s/tutorials/Install_Python_2.7_or_3_on_debian_6.html)
+Tested with: Python 3.8
 
 ### Known issues
 
-- Does not work with python3 (Feel free to port/fix it.)
-- Does not handle all charsets. Works best with utf-8 and ascii.
 - No search function.
-- Not able to change default sorting (latest first).
-
-### Info on incremental backups
-
-If you disable incremental backups, the script will run over the folders, create a maildir, create the pages and then move the maildir to `$maildir.date` where date is a timestamp. 
-If you enable incremental backup, it will create a text file `nopriv.txt` with the mail ID's of the folder, so that it know which ID it needs to continue on the next time it is ran. If you delete emails from the folder, the incremental function will not work as expected because of differing ID's.
+- Not able to change default sorting (however they come).
 
 ## Info on restoring
 
-Nopriv creates a Maildir folder, which houses all your email. You can restore this maildir folder to an IMAP account either by using the script [linked at the top on this page](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server), or use a mail client like Mutt or Evolution and transport it to an imap account via there.
+Script creates a Maildir folder, which houses all your email. You can restore this maildir folder to an IMAP account either by using the script [linked at the top on this page](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server), or use a mail client like Mutt or Evolution and transport it to an imap account via there.
