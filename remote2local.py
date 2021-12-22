@@ -27,7 +27,7 @@ def getAllFolders(IMAPFOLDER_ORIG, mail):
     Returns all folders from remote server
     """
     response = []
-    if len(IMAPFOLDER_ORIG) == 1 and IMAPFOLDER_ORIG[0] == "NoPriv_All":
+    if len(IMAPFOLDER_ORIG) == 1 and IMAPFOLDER_ORIG[0] == "all":
         maillist = mail.list()
         for imapFolder in sorted(maillist[1]):
             imapFolder = imapFolder.decode()

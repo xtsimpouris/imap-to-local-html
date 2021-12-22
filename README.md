@@ -91,9 +91,9 @@ New in version 2:
 
 2. Set up your login details, imap server and ssl:
 
-Edit the `nopriv.ini` file with your IMAP server, login and password:
+Edit the `imap-to-local-html.ini` file with your IMAP server, login and password:
 
-    [nopriv]
+    [imap-to-local-html]
     imap_server = imap.gmail.com
     imap_user = xyz@googlemail.com
     imap_password = my_secrept_password
@@ -104,18 +104,18 @@ Edit the `nopriv.ini` file with your IMAP server, login and password:
 
 If you want to use SSL to connect to IMAP, or want to use incremental backups, enable or disable the options.
 
-**If you want to backup all folders, enter `NoPriv_All` as imap_folder.**
+**If you want to backup all folders, enter `all` as imap_folder.**
 
 If you do not all your folder names, execute python script and checkout the list of folders
 
 
-`Nopriv.ini` can be in the following locations:
+`imap-to-local-html.ini` can be in the following locations:
  
-- './nopriv.ini'
-- './.nopriv.ini'
-- '~/.config/nopriv.ini'
-- '/opt/local/etc/nopriv.ini'
-- '/etc/nopriv.ini'
+- './imap-to-local-html.ini'
+- './.imap-to-local-html.ini'
+- '~/.config/imap-to-local-html.ini'
+- '/opt/local/etc/imap-to-local-html.ini'
+- '/etc/imap-to-local-html.ini'
 
 If you use gmail and want to backup all your email, use the "[Gmail]/All Mail" folder. It might be named different if you use another locale, for me with a Dutch gmail account it is named "[Gmail]/Alle Berichten".
 
@@ -123,12 +123,12 @@ If you use gmail and want to backup all your email, use the "[Gmail]/All Mail" f
     1. Create one with python 3.x, for example `python3 -m venv env`
     2. Get into it, for example `. env/bin/activate`
     3. Install dependencies from `requirements.txt`, for example `pip install -r requirements.txt`
-    4. Execute main program, for example `python nopriv.py`
+    4. Execute main program, for example `python imap-to-local-html.py`
     5. Get out from the virtual environment, for example `deactivate`
 
 4. Execute the script:
 
-    `python ./nopriv.py`
+    `python ./imap-to-local-html.py`
 
 5. Browse the generated backup:
 

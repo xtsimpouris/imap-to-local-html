@@ -40,11 +40,11 @@ import remote2local
 
 # places where the config could be located
 config_file_paths = [
-    './nopriv.ini',
-    './.nopriv.ini',
-    '~/.config/nopriv.ini',
-    '/opt/local/etc/nopriv.ini',
-    '/etc/nopriv.ini'
+    './imap-to-local-html.ini',
+    './.imap-to-local-html.ini',
+    '~/.config/imap-to-local-html.ini',
+    '/opt/local/etc/imap-to-local-html.ini',
+    '/etc/imap-to-local-html.ini'
 ]
 
 config = configparser.ConfigParser()
@@ -60,22 +60,22 @@ if found == False:
     raise Exception(message)
 
 
-IMAPSERVER = config.get('nopriv', 'imap_server')
-IMAPLOGIN = config.get('nopriv', 'imap_user')
-IMAPPASSWORD = config.get('nopriv', 'imap_password')
+IMAPSERVER = config.get('imap-to-local-html', 'imap_server')
+IMAPLOGIN = config.get('imap-to-local-html', 'imap_user')
+IMAPPASSWORD = config.get('imap-to-local-html', 'imap_password')
 
 if IMAPPASSWORD == "":
     IMAPPASSWORD = getpass.getpass()
 
 IMAPFOLDER_ORIG = [ folder.strip() for folder in \
-                     config.get('nopriv', 'imap_folder').split(',') \
+                     config.get('imap-to-local-html', 'imap_folder').split(',') \
                      if folder.strip() != "" ]
 
 yes_flags = ['true', 1, '1', 'True', 'yes', 'y', 'on']
 
 ssl = False
 try:
-    ssl_value = config.get('nopriv', 'ssl')
+    ssl_value = config.get('imap-to-local-html', 'ssl')
     if ssl_value in yes_flags:
         ssl = True
 except:
