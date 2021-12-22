@@ -201,7 +201,9 @@ def getMailFolders():
 
     mailFolders = {}
     maillist = mail.list()
+    count = 0
     for ifo in sorted(maillist[1]):
+        count += 1
         ifo = ifo.decode()
         ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
         # TODO, maybe consider identifying separator
@@ -211,19 +213,15 @@ def getMailFolders():
 
         parts = ifo.split(".")
 
-        fileName = "%s/index.html" % ifo
+        fileName = "%02d-%s.html" % (count, slugify(normalize(ifo, "utf7")))
         mailFolders[ifo] = {
             "id": ifo,
             "title": normalize(parts[len(parts) - 1], "utf7"),
             "parent": '.'.join(parts[:-1]),
             "selected": ifo in IMAPFOLDER or normalize(ifo, "utf7") in IMAPFOLDER,
-            "folder": ifo,
             "file": fileName,
             "link": "/%s" % fileName,
         }
-
-        if mailFolders[ifo]["selected"] and not os.path.exists("%s/%s" % (maildir_result, mailFolders[ifo]["folder"])):
-            os.mkdir("%s/%s" % (maildir_result, mailFolders[ifo]["folder"]))
 
     # Single root folders do not matter really - usually it's just "INBOX"
     # Let's see how many menus existi with no parent
@@ -442,12 +440,12 @@ def backup_mails_to_html_from_local_maildir(folder):
         renderPage(
             "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
             headerTitle="Folder %s" % mailFolders[folder]["title"],
-            linkPrefix="..",
+            linkPrefix=".",
             content=renderTemplate(
                 "page-mail-list.tpl",
                 None,
                 mailList=mailList,
-                linkPrefix="..",
+                linkPrefix=".",
             )
         )
 
@@ -471,7 +469,7 @@ def backup_mails_to_html_from_local_maildir(folder):
         mail_date = email.utils.parsedate(decode_header(mail.get('Date'))[0][0])
 
         mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
-        mail_folder = "%s/%s" % (mailFolders[folder]["folder"], str(time.strftime("%Y/%m/%d", mail_date)))
+        mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
         mail_raw = ""
         error_decoding = ""
 
@@ -544,12 +542,12 @@ def backup_mails_to_html_from_local_maildir(folder):
         renderPage(
             "%s/%s" % (maildir_result, mailList[mail_id]["file"]),
             headerTitle=mailList[mail_id]["subject"],
-            linkPrefix="../../../..",
+            linkPrefix="../../..",
             content=renderTemplate(
                 "page-mail.tpl",
                 None,
                 mail=mailList[mail_id],
-                linkPrefix="../../../..",
+                linkPrefix="../../..",
             )
         )
 
@@ -571,12 +569,12 @@ def backup_mails_to_html_from_local_maildir(folder):
     renderPage(
         "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
         headerTitle="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
-        linkPrefix="..",
+        linkPrefix=".",
         content=renderTemplate(
             "page-mail-list.tpl",
             None,
             mailList=mailList,
-            linkPrefix="..",
+            linkPrefix=".",
         )
     )
 
