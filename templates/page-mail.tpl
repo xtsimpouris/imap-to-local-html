@@ -58,7 +58,7 @@
         <div class="col-md-9">
           <ol class="attachments">
             {% for attachment in mail.attachments %}
-              <li><a href="{{ linkPrefix }}/{{ attachment.path }}" target="_blank">{{ attachment.title }}</a> ({{ attachment.size|humansize }}, {{ attachment.mimetype }})</li>
+              <li><a href="{{ linkPrefix }}/{{ attachment.link }}" target="_blank">{{ attachment.title }}</a> ({{ attachment.size|humansize }}, {{ attachment.mimetype }})</li>
             {% endfor %}
           </ol>
         </div>

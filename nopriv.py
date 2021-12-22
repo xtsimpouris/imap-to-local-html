@@ -20,6 +20,7 @@ import email
 import mailbox
 from email.header import decode_header, make_header
 from email.utils import parsedate
+from slugify import slugify
 import time
 import re
 from math import ceil
@@ -38,7 +39,7 @@ from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader
 import remote2local
 
 # places where the config could be located
-config_file_paths = [ 
+config_file_paths = [
     './nopriv.ini',
     './.nopriv.ini',
     '~/.config/nopriv.ini',
@@ -73,9 +74,9 @@ IMAPFOLDER_ORIG = [ folder.strip() for folder in \
 yes_flags = ['true', 1, '1', 'True', 'yes', 'y', 'on']
 
 ssl = False
-try: 
+try:
     ssl_value = config.get('nopriv', 'ssl')
-    if ssl_value in yes_flags: 
+    if ssl_value in yes_flags:
         ssl = True
 except:
     pass
@@ -105,7 +106,7 @@ def getTitle(title = None):
     result = []
     if title:
         result.append(title)
-    
+
     result.append('%s@%s' % (IMAPLOGIN, IMAPSERVER))
     result.append('IMAP to local HTML')
 
@@ -203,7 +204,7 @@ def getMailFolders():
     for ifo in sorted(maillist[1]):
         ifo = ifo.decode()
         ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
-        # TODO, maybe consider identifying separator 
+        # TODO, maybe consider identifying separator
         ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
         ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
         ifo = ifo.strip()
@@ -375,7 +376,7 @@ def getMailContent(mail):
             if part_content_type == 'text/html':
                 content_of_mail_html += part_decoded_contents
                 continue
-    
+
         # Attachment
         if not part.get('Content-Disposition') is None:
             if part.get_content_maintype() == 'multipart':
@@ -383,11 +384,21 @@ def getMailContent(mail):
 
             attachment_filename = 'no-name-%d' % (len(attachments) + 1)
             if part.get_filename():
-                attachment_filename = make_header(decode_header(part.get_filename()))
-            
+                attachment_filename = str(make_header(decode_header(part.get_filename())))
+
+            filename_parts = attachment_filename.split(".")
+
+            filename_ext = filename_parts[-1]
+            filename_rest = filename_parts[:-1]
+
             attachment_content = part.get_payload(decode=True)
+            # Empty file?
+            if not attachment_content:
+                continue
+
             attachments.append({
                 "title": attachment_filename,
+                "slug": "%s.%s" % (slugify('.'.join(filename_rest)), filename_ext.lower()),
                 "filename": attachment_filename,
                 "mimetype": part_content_type,
                 "maintype": part_content_maintype,
@@ -401,7 +412,7 @@ def getMailContent(mail):
         content_of_mail_text = re.sub(r"(?i)<!DOCTYPE.*?>", "", content_of_mail_text, flags=re.DOTALL)
         content_of_mail_text = re.sub(r"(?i)POSITION: absolute;", "", content_of_mail_text, flags=re.DOTALL)
         content_of_mail_text = re.sub(r"(?i)TOP: .*?;", "", content_of_mail_text, flags=re.DOTALL)
-        
+
 
     if content_of_mail_html:
         content_of_mail_html = re.sub(r"(?i)<html>.*?<head>.*?</head>.*?<body>", "", content_of_mail_html, flags=re.DOTALL)
@@ -409,7 +420,7 @@ def getMailContent(mail):
         content_of_mail_html = re.sub(r"(?i)<!DOCTYPE.*?>", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)POSITION: absolute;", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)TOP: .*?;", "", content_of_mail_html, flags=re.DOTALL)
-    
+
     return content_of_mail_text, content_of_mail_html, attachments
 
 
@@ -497,7 +508,8 @@ def backup_mails_to_html_from_local_maildir(folder):
         attachment_count = 0
         for attachment in attachments:
             attachment_count += 1
-            attachment["path"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["filename"])
+            attachment["path"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["slug"])
+            attachment["link"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["slug"])
             with open("%s/%s" % (maildir_result, attachment["path"]), 'wb') as att_file:
                 try:
                     att_file.write(attachment["content"])
@@ -602,7 +614,7 @@ for folder in IMAPFOLDER:
                 remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
             else:
                 print("Connection gave more than 5 errors. Not trying again")
-            
+
     print(("Done with folder: %s.") % normalize(folder, "utf7"))
     print("\n")
 
@@ -611,7 +623,7 @@ removeDir("%s/inc" % maildir_result)
 copyDir(inc_location, "%s/inc" % maildir_result)
 
 for folderID in mailFolders:
-    folder = mailFolders[folderID] 
+    folder = mailFolders[folderID]
     if not folder["selected"]:
         continue
 
