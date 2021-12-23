@@ -1,4 +1,4 @@
-imap-to-local-html.ini
+imap-to-local-html.yml
 mailbox*
 env*
 

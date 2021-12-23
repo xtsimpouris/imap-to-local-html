@@ -91,31 +91,28 @@ New in version 2:
 
 2. Set up your login details, imap server and ssl:
 
-Edit the `imap-to-local-html.ini` file with your IMAP server, login and password:
+Clone `imap-to-local-html.sample.yml` to `imap-to-local-html.yml` and edit appropriately:
+```yaml
+settings:
+  domain: imap-domain-name
+  username: login-username
+  # password is optional, if not provided, it will be requested during execution
+  # password: my-secret-password
+  folders:
+    # list of folders
+    # one folder per line
+    # or one regular expression per line
+    - INBOX
+    # to select all
+    - --all
+  ssl: true
+```
 
-    [imap-to-local-html]
-    imap_server = imap.gmail.com
-    imap_user = xyz@googlemail.com
-    imap_password = my_secrept_password
-    imap_folder = INBOX, Draft, Newletters
-    
-    #optional
-    ssl = true
+If you want to use SSL to connect to IMAP, enable or disable the options.
 
-If you want to use SSL to connect to IMAP, or want to use incremental backups, enable or disable the options.
+**If you want to backup all folders, enter `--all` as a selected `folder`
 
-**If you want to backup all folders, enter `all` as imap_folder.**
-
-If you do not all your folder names, execute python script and checkout the list of folders
-
-
-`imap-to-local-html.ini` can be in the following locations:
- 
-- './imap-to-local-html.ini'
-- './.imap-to-local-html.ini'
-- '~/.config/imap-to-local-html.ini'
-- '/opt/local/etc/imap-to-local-html.ini'
-- '/etc/imap-to-local-html.ini'
+If you do not know all your folder names, execute python script and checkout the list of folders
 
 If you use gmail and want to backup all your email, use the "[Gmail]/All Mail" folder. It might be named different if you use another locale, for me with a Dutch gmail account it is named "[Gmail]/Alle Berichten".
 

@@ -9,35 +9,35 @@ import time
 from utils import normalize
 
 
-def connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD, ssl):
+def connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL):
     """
     Connects to remote server
     """
-    if ssl is True:
-        mail = imaplib.IMAP4_SSL(IMAPSERVER)
-    if ssl is False:
-        mail = imaplib.IMAP4(IMAPSERVER)
-    mail.login(IMAPLOGIN, IMAPPASSWORD)
+    if IMAP_SSL is True:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+    if IMAP_SSL is False:
+        mail = imaplib.IMAP4(IMAP_SERVER)
+    mail.login(IMAP_USERNAME, IMAP_PASSWORD)
     mail.enable("UTF8=ACCEPT")
+
     return mail
 
 
-def getAllFolders(IMAPFOLDER_ORIG, mail):
+def getAllFolders(mail):
     """
     Returns all folders from remote server
     """
     response = []
-    if len(IMAPFOLDER_ORIG) == 1 and IMAPFOLDER_ORIG[0] == "all":
-        maillist = mail.list()
-        for imapFolder in sorted(maillist[1]):
-            imapFolder = imapFolder.decode()
-            imapFolder = re.sub(r"(?i)\(.*\)", "", imapFolder, flags=re.DOTALL)
-            imapFolder = re.sub(r"(?i)\".\"", "", imapFolder, flags=re.DOTALL)
-            imapFolder = re.sub(r"(?i)\"", "", imapFolder, flags=re.DOTALL)
-            imapFolder = imapFolder.strip()
-            response.append(imapFolder)
-    else:
-        response = IMAPFOLDER_ORIG
+
+    maillist = mail.list()
+    for imapFolder in sorted(maillist[1]):
+        imapFolder = imapFolder.decode()
+        imapFolder = re.sub(r"(?i)\(.*\)", "", imapFolder, flags=re.DOTALL)
+        imapFolder = re.sub(r"(?i)\".\"", "", imapFolder, flags=re.DOTALL)
+        imapFolder = re.sub(r"(?i)\"", "", imapFolder, flags=re.DOTALL)
+        imapFolder = imapFolder.strip()
+        response.append(imapFolder)
+
     return response
 
 

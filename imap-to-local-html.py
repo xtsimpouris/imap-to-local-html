@@ -27,65 +27,44 @@ from math import ceil
 import os
 import base64
 import datetime
-import configparser
 from quopri import decodestring
 import getpass
 
-from jinja2 import Template, Environment
+from jinja2 import Environment
 import hashlib
 import sys
+import yaml
 
 from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader
 import remote2local
 
-# places where the config could be located
-config_file_paths = [
-    './imap-to-local-html.ini',
-    './.imap-to-local-html.ini',
-    '~/.config/imap-to-local-html.ini',
-    '/opt/local/etc/imap-to-local-html.ini',
-    '/etc/imap-to-local-html.ini'
-]
-
-config = configparser.ConfigParser()
-found = False
-for conf_file in config_file_paths:
-    if os.path.isfile(conf_file):
-        config.read(conf_file)
-        found = True
-        break
-if found == False:
-    message = "No config file found. Expected places: %s" % \
-        ("\n".join(config_file_paths), )
-    raise Exception(message)
-
-
-IMAPSERVER = config.get('imap-to-local-html', 'imap_server')
-IMAPLOGIN = config.get('imap-to-local-html', 'imap_user')
-IMAPPASSWORD = config.get('imap-to-local-html', 'imap_password')
-
-if IMAPPASSWORD == "":
-    IMAPPASSWORD = getpass.getpass()
-
-IMAPFOLDER_ORIG = [ folder.strip() for folder in \
-                     config.get('imap-to-local-html', 'imap_folder').split(',') \
-                     if folder.strip() != "" ]
-
-yes_flags = ['true', 1, '1', 'True', 'yes', 'y', 'on']
-
-ssl = False
+server = {}
 try:
-    ssl_value = config.get('imap-to-local-html', 'ssl')
-    if ssl_value in yes_flags:
-        ssl = True
-except:
+    with open('imap-to-local-html.yml', 'r') as file:
+        server = yaml.safe_load(file)
+        server = server.get('settings')
+except Exception as e:
     pass
+
+if not server:
+    print("No yml was found or is not valid, exiting. Please check README file or imap-to-local-html.samle.yml for more details")
+    exit()
+
+IMAP_SERVER = server.get('domain')
+IMAP_USERNAME = server.get('username')
+IMAP_PASSWORD = server.get('password')
+
+if not IMAP_PASSWORD:
+    IMAP_PASSWORD = getpass.getpass()
+
+IMAP_FOLDERS_ORIG = server.get('folders')
+IMAP_SSL = server.get('ssl', True)
 
 mail = None
 mailFolders = None
 inc_location = "inc"
 
-maildir = 'mailbox.%s@%s' % (IMAPLOGIN, IMAPSERVER)
+maildir = 'mailbox.%s@%s' % (IMAP_USERNAME, IMAP_SERVER)
 if not os.path.exists(maildir):
     os.mkdir(maildir)
 
@@ -107,7 +86,7 @@ def getTitle(title = None):
     if title:
         result.append(title)
 
-    result.append('%s@%s' % (IMAPLOGIN, IMAPSERVER))
+    result.append('%s@%s' % (IMAP_USERNAME, IMAP_SERVER))
     result.append('IMAP to local HTML')
 
     return ' | '.join(result)
@@ -167,7 +146,7 @@ def renderPage(saveTo, **kwargs):
     Expects: title, contentZ
     """
     kwargs['title'] = getTitle(kwargs.get('title'))
-    kwargs['username'] = IMAPLOGIN
+    kwargs['username'] = IMAP_USERNAME
     kwargs['linkPrefix'] = kwargs.get('linkPrefix', '.')
     kwargs['sideMenu'] = renderMenu(linkPrefix=kwargs['linkPrefix'])
 
@@ -192,6 +171,7 @@ def getMailFolders():
     Returns mail folders
     """
     global mailFolders
+    global IMAP_FOLDERS_ORIG
 
     if not mailFolders is None:
         return mailFolders
@@ -200,31 +180,32 @@ def getMailFolders():
         return mailFolders
 
     mailFolders = {}
-    maillist = mail.list()
+    maillist = remote2local.getAllFolders(mail)
     count = 0
-    for ifo in sorted(maillist[1]):
+    for folderID in maillist:
         count += 1
-        ifo = ifo.decode()
-        ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
-        # TODO, maybe consider identifying separator
-        ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
-        ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
-        ifo = ifo.strip()
 
-        parts = ifo.split(".")
+        parts = folderID.split(".")
 
-        fileName = "%02d-%s.html" % (count, slugify(normalize(ifo, "utf7")))
-        mailFolders[ifo] = {
-            "id": ifo,
+        fileName = "%03d-%s.html" % (count, slugify(normalize(folderID, "utf7")))
+
+        isSelected = False
+        for selectedFolder in IMAP_FOLDERS_ORIG:
+            if re.search(selectedFolder, folderID):
+                isSelected = True
+                break
+
+        mailFolders[folderID] = {
+            "id": folderID,
             "title": normalize(parts[len(parts) - 1], "utf7"),
             "parent": '.'.join(parts[:-1]),
-            "selected": ifo in IMAPFOLDER or normalize(ifo, "utf7") in IMAPFOLDER,
+            "selected": '--all' in IMAP_FOLDERS_ORIG or isSelected,
             "file": fileName,
             "link": "/%s" % fileName,
         }
 
     # Single root folders do not matter really - usually it's just "INBOX"
-    # Let's see how many menus existi with no parent
+    # Let's see how many menus exist with no parent
     menusWithNoParent = []
     for menu in mailFolders:
         if mailFolders[menu]["parent"] == "":
@@ -270,21 +251,19 @@ def getHeader(raw, header):
 
 
 def renderIndexPage():
-    global IMAPFOLDER
-    global IMAPLOGIN
-    global IMAPSERVER
-    global ssl
+    global IMAP_USERNAME
+    global IMAP_SERVER
     now = datetime.datetime.now()
 
     allInfo = []
     allInfo.append({
         "title": "IMAP Server",
-        "value": IMAPSERVER,
+        "value": IMAP_SERVER,
     })
 
     allInfo.append({
         "title": "Username",
-        "value": IMAPLOGIN,
+        "value": IMAP_USERNAME,
     })
 
     allInfo.append({
@@ -305,27 +284,25 @@ def renderIndexPage():
     )
 
 
-def returnImapFolders(available=True, selected=True):
-    response = ""
-    if available:
-        maillist = mail.list()
-        for ifo in sorted(maillist[1]):
-            ifo = ifo.decode().strip()
-            ifo = re.sub(r"(?i)\(.*\)", "", ifo, flags=re.DOTALL)
-            ifo = re.sub(r"(?i)\".\"", "", ifo, flags=re.DOTALL)
-            ifo = re.sub(r"(?i)\"", "", ifo, flags=re.DOTALL)
-            response += "- %s (%s) \n" % (normalize(ifo, "utf7"), ifo)
-        response += "\n"
+def printImapFolders(currentParent = '', intend = '  '):
+    """
+    Prints list of folders
+    """
 
-    if selected:
-        response += "Selected folders:\n"
-        for sfo in IMAPFOLDER:
-            sfo = sfo.strip()
-            response += "- %s (%s) \n" % (normalize(sfo, "utf7"), sfo)
+    if not currentParent:
+        print("All folders")
 
-    response += "\n"
+    allFolders = getMailFolders()
+    for folderID in allFolders:
+        folder = allFolders[folderID]
+        if folder["parent"] != currentParent:
+            continue
 
-    return response
+        if allFolders[folderID]["selected"]:
+            print("%s**%s (%s)" % (intend, allFolders[folderID]["title"], folderID))
+        else:
+            print("%s%s (%s)" % (intend, allFolders[folderID]["title"], folderID))
+        printImapFolders(folderID, intend + "    ")
 
 
 def returnWelcome():
@@ -380,23 +357,32 @@ def getMailContent(mail):
             if part.get_content_maintype() == 'multipart':
                 continue
 
-            attachment_filename = 'no-name-%d' % (len(attachments) + 1)
-            if part.get_filename():
-                attachment_filename = str(make_header(decode_header(part.get_filename())))
-
-            filename_parts = attachment_filename.split(".")
-
-            filename_ext = filename_parts[-1]
-            filename_rest = filename_parts[:-1]
-
             attachment_content = part.get_payload(decode=True)
             # Empty file?
             if not attachment_content:
                 continue
 
+            attachment_filename_default = 'no-name-%d' % (len(attachments) + 1)
+
+            if part.get_filename():
+                attachment_filename = str(make_header(decode_header(part.get_filename())))
+            else:
+                attachment_filename = attachment_filename_default
+
+            filename_parts = attachment_filename.split(".")
+
+            filename_ext = filename_parts[-1]
+            filename_rest = filename_parts[:-1]
+            filename_slug = "%s.%s" % (slugify('.'.join(filename_rest)), filename_ext.lower())
+
+            # slugify may produce really long names due to encoding
+            # for such cases let't go with the fedault approach
+            if len(filename_slug) > 50:
+                filename_slug = attachment_filename_default
+
             attachments.append({
                 "title": attachment_filename,
-                "slug": "%s.%s" % (slugify('.'.join(filename_rest)), filename_ext.lower()),
+                "slug": filename_slug,
                 "filename": attachment_filename,
                 "mimetype": part_content_type,
                 "maintype": part_content_maintype,
@@ -508,13 +494,12 @@ def backup_mails_to_html_from_local_maildir(folder):
             attachment_count += 1
             attachment["path"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["slug"])
             attachment["link"] = "%s/%s-%02d-%s" % (mail_folder, mail_id_hash, attachment_count, attachment["slug"])
-            with open("%s/%s" % (maildir_result, attachment["path"]), 'wb') as att_file:
-                try:
+            try:
+                with open("%s/%s" % (maildir_result, attachment["path"]), 'wb') as att_file:
                     att_file.write(attachment["content"])
-                except Exception as e:
-                    att_file.write("Error writing attachment: " + str(e) + ".\n")
-                    error_decoding += "~> Error writing attachment: %s" % str(e)
-                    print("Error writing attachment: " + str(e) + ".\n")
+            except Exception as e:
+                error_decoding += "~> Error writing attachment: %s" % str(e)
+                print("Error writing attachment: " + str(e) + ".\n")
 
         mailList[mail_id] = {
             "id": mail_id,
@@ -581,49 +566,47 @@ def backup_mails_to_html_from_local_maildir(folder):
     print("Done!")
 
 returnWelcome()
+mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL)
+printImapFolders()
 
+allFolders = getMailFolders()
+for folderID in allFolders:
+    if not allFolders[folderID]["selected"]:
+        continue
 
-mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD, ssl)
-IMAPFOLDER = remote2local.getAllFolders(IMAPFOLDER_ORIG, mail)
-print(returnImapFolders())
-
-for folder in IMAPFOLDER:
-    print(("Getting messages from server from folder: %s.") % normalize(folder, "utf7"))
+    print(("Getting messages from server from folder: %s.") % normalize(folderID, "utf7"))
     retries = 0
-    if ssl:
+    if IMAP_SSL:
         try:
-            remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+            remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
         except imaplib.IMAP4_SSL.abort:
             if retries < 5:
                 print(("SSL Connection Abort. Trying again (#%i).") % retries)
                 retries += 1
-                mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+                mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL)
+                remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
             else:
                 print("SSL Connection gave more than 5 errors. Not trying again")
     else:
         try:
-            remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+            remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
         except imaplib.IMAP4.abort:
             if retries < 5:
                 print(("Connection Abort. Trying again (#%i).") % retries)
                 retries += 1
-                mail = remote2local.connectToImapMailbox(IMAPSERVER, IMAPLOGIN, IMAPPASSWORD)
-                remote2local.getMessageToLocalDir(folder, mail, maildir_raw)
+                mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD)
+                remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
             else:
                 print("Connection gave more than 5 errors. Not trying again")
 
-    print(("Done with folder: %s.") % normalize(folder, "utf7"))
-    print("\n")
+    print(("Done with folder: %s.") % normalize(folderID, "utf7"))
 
 renderIndexPage()
 removeDir("%s/inc" % maildir_result)
 copyDir(inc_location, "%s/inc" % maildir_result)
 
-for folderID in mailFolders:
-    folder = mailFolders[folderID]
-    if not folder["selected"]:
+for folderID in allFolders:
+    if not allFolders[folderID]["selected"]:
         continue
 
     backup_mails_to_html_from_local_maildir(folderID)
-    print("\n")
