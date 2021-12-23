@@ -9,3 +9,5 @@ settings:
     # or one regular expression per line
     - INBOX
   ssl: true
+  # default is true
+  prettify: true

@@ -106,6 +106,8 @@ settings:
     # to select all
     - --all
   ssl: true
+  # default is true
+  prettify: true
 ```
 
 If you want to use SSL to connect to IMAP, enable or disable the options.

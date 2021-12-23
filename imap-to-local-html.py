@@ -15,6 +15,7 @@
 #     You should have received a copy of the GNU General Public License
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from bs4 import BeautifulSoup
 import imaplib
 import email
 import mailbox
@@ -53,6 +54,7 @@ if not server:
 IMAP_SERVER = server.get('domain')
 IMAP_USERNAME = server.get('username')
 IMAP_PASSWORD = server.get('password')
+HTML_PRETTIFY = server.get('prettify', True)
 
 if not IMAP_PASSWORD:
     IMAP_PASSWORD = getpass.getpass()
@@ -96,6 +98,8 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     """
     Helper function to render a tamplete with variables
     """
+    global HTML_PRETTIFY
+
     templateContents = ''
     with open("templates/%s" % templateFrom, "r") as f:
         templateContents = f.read()
@@ -108,7 +112,11 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     result = template.render(**kwargs)
     if saveTo:
         with open(saveTo, "w") as f:
-            f.write(result)
+            if HTML_PRETTIFY:
+                soup = BeautifulSoup(result, "html.parser")
+                f.write(soup.prettify())
+            else:
+                f.write(result)
 
     return result
 
