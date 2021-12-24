@@ -62,9 +62,9 @@ def normalize(unknown, encoding = None):
             header = decode_header(unknown)
             result = ''
             for header_text, header_encoding in header:
-                result += normalize(header_text, header_encoding)
+                result += ' ' + normalize(header_text, header_encoding).strip()
 
-            return result
+            return result.strip()
 
         if isinstance(unknown, str):
             unknown = unknown.encode()

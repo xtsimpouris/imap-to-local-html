@@ -39,6 +39,18 @@
       </div>
     </div>
   </li>
+  {% if mail.replyTo %}
+    <li class="list-group-item">
+      <div class="row">
+        <div class="col-md-3 text-right">
+          <strong>Reply to:</strong>
+        </div>
+        <div class="col-md-9">
+          <a href="{{ linkPrefix }}{{ mail.replyTo.link }}">{{ mail.replyTo.subject }}</a>
+        </div>
+      </div>
+    </li>
+  {% endif %}
   <li class="list-group-item">
     <div class="row">
       <div class="col-md-3 text-right">

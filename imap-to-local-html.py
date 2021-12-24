@@ -409,7 +409,7 @@ def getMailContent(mail):
     return content_of_mail_text, content_of_mail_html, attachments
 
 
-def backup_mails_to_html_from_local_maildir(folder):
+def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
     """
     Creates HTML files and folder index from a mailbox folder
     """
@@ -502,6 +502,11 @@ def backup_mails_to_html_from_local_maildir(folder):
                 error_decoding += "~> Error writing attachment: %s" % str(e)
                 print("Error writing attachment: " + str(e) + ".\n")
 
+        mailReplyTo = None
+        mailReplyToRaw = normalize(mail.get('In-Reply-To'), 'header')
+        if mailReplyToRaw and mailReplyToRaw in mailsPerID:
+            mailReplyTo = mailsPerID[mailReplyToRaw]
+
         mailList[mail_id] = {
             "id": mail_id,
             "from": mail_from,
@@ -511,6 +516,7 @@ def backup_mails_to_html_from_local_maildir(folder):
             "size": len(mail_raw),
             "file": fileName,
             "link": "/%s" % fileName,
+            "replyTo": mailReplyTo,
             "content": {
                 "html": content_of_mail_html,
                 "text": content_of_mail_text,
@@ -606,8 +612,51 @@ renderIndexPage()
 removeDir("%s/inc" % maildir_result)
 copyDir(inc_location, "%s/inc" % maildir_result)
 
+# We go through all folders and create a unified struct
+# This will help references between mails
+mailsPerID = {}
+print("Creating unified list..", end="")
+sys.stdout.flush()
 for folderID in allFolders:
     if not allFolders[folderID]["selected"]:
         continue
 
-    backup_mails_to_html_from_local_maildir(folderID)
+    local_maildir_folder = folderID.replace("/", ".")
+    local_maildir = mailbox.Maildir(os.path.join(maildir_raw), factory=None, create=True)
+    try:
+        maildir_folder = local_maildir.get_folder(local_maildir_folder)
+    except mailbox.NoSuchMailboxError as e:
+        continue
+
+    for mail in maildir_folder:
+        mail_id = mail.get('Message-Id')
+        if mail_id in mailsPerID:
+            continue
+
+        mail_subject = normalize(mail.get('Subject'), 'header')
+
+        if not mail_subject:
+            mail_subject = "(No Subject)"
+
+        mail_date = email.utils.parsedate(normalize(mail.get('Date'), 'header'))
+        mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
+        mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
+        fileName = "%s/%s.html" % (mail_folder, mail_id_hash)
+
+        mailsPerID[mail_id] = {
+            "id": mail_id,
+            "date": time.strftime("%Y-%m-%d %H:%m", mail_date),
+            "subject": mail_subject,
+            "file": fileName,
+            "link": "/%s" % fileName,
+        }
+
+    print(".", end="")
+    sys.stdout.flush()
+print("Done (%d) mails" % len(mailsPerID))
+
+for folderID in allFolders:
+    if not allFolders[folderID]["selected"]:
+        continue
+
+    backup_mails_to_html_from_local_maildir(folderID, mailsPerID)
