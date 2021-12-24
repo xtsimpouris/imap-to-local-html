@@ -6,6 +6,7 @@ import errno
 import os
 from quopri import decodestring
 import shutil
+from slugify import slugify
 
 
 def b64padanddecode(b):
@@ -136,4 +137,16 @@ def simplifyEmailHeader(header):
     if rest == "":
         return html.escape(header)
     
+    return result
+
+
+def slugify_safe(val, defaultVal = '', maxSize = 50):
+    """
+    Wraps slugify function in cases result is way too big
+    """
+    result = slugify(val)
+
+    if not result or len(result) > maxSize:
+        result = defaultVal
+
     return result

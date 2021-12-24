@@ -21,7 +21,6 @@ import email
 import mailbox
 from email.header import decode_header, make_header
 from email.utils import parsedate
-from slugify import slugify
 import time
 import re
 from math import ceil
@@ -36,7 +35,7 @@ import hashlib
 import sys
 import yaml
 
-from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader
+from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader, slugify_safe
 import remote2local
 
 server = {}
@@ -195,7 +194,7 @@ def getMailFolders():
 
         parts = folderID.split(".")
 
-        fileName = "%03d-%s.html" % (count, slugify(normalize(folderID, "utf7")))
+        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folderID, "utf7"), defaultVal="folder"))
 
         isSelected = False
         for selectedFolder in IMAP_FOLDERS_ORIG:
@@ -381,12 +380,7 @@ def getMailContent(mail):
 
             filename_ext = filename_parts[-1]
             filename_rest = filename_parts[:-1]
-            filename_slug = "%s.%s" % (slugify('.'.join(filename_rest)), filename_ext.lower())
-
-            # slugify may produce really long names due to encoding
-            # for such cases let't go with the fedault approach
-            if len(filename_slug) > 50:
-                filename_slug = attachment_filename_default
+            filename_slug = "%s.%s" % (slugify_safe('.'.join(filename_rest), defaultVal=attachment_filename_default), filename_ext.lower())
 
             attachments.append({
                 "title": attachment_filename,
