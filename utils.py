@@ -7,6 +7,7 @@ import os
 from quopri import decodestring
 import shutil
 from slugify import slugify
+from email.header import decode_header
 
 
 def b64padanddecode(b):
@@ -37,7 +38,11 @@ def normalize(unknown, encoding = None):
     """
     Tries hard to normalize anything to utf-8
     """
-    if encoding:
+
+    if unknown is None:
+        return ''
+
+    if encoding and not encoding in ('unknown-8bit',):
         encoding = encoding.lower()
 
         if encoding in ("quoted-printable", "7bit", "8bit"):
@@ -52,6 +57,14 @@ def normalize(unknown, encoding = None):
 
         if encoding == 'utf7':
             return normalize(imaputf7decode(unknown))
+
+        if encoding == 'header':
+            header = decode_header(unknown)
+            result = ''
+            for header_text, header_encoding in header:
+                result += normalize(header_text, header_encoding)
+
+            return result
 
         if isinstance(unknown, str):
             unknown = unknown.encode()

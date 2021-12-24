@@ -19,7 +19,6 @@ from bs4 import BeautifulSoup
 import imaplib
 import email
 import mailbox
-from email.header import decode_header, make_header
 from email.utils import parsedate
 import time
 import re
@@ -372,7 +371,7 @@ def getMailContent(mail):
             attachment_filename_default = 'no-name-%d' % (len(attachments) + 1)
 
             if part.get_filename():
-                attachment_filename = str(make_header(decode_header(part.get_filename())))
+                attachment_filename = normalize(part.get_filename(), 'header')
             else:
                 attachment_filename = attachment_filename_default
 
@@ -447,14 +446,14 @@ def backup_mails_to_html_from_local_maildir(folder):
         if mail_id in mailList:
             continue
 
-        mail_subject = str(make_header(decode_header(mail.get('Subject'))))
+        mail_subject = normalize(mail.get('Subject'), 'header')
 
         if not mail_subject:
             mail_subject = "(No Subject)"
 
-        mail_from = str(make_header(decode_header(mail.get('From'))))
-        mail_to = str(make_header(decode_header(mail.get('To'))))
-        mail_date = email.utils.parsedate(decode_header(mail.get('Date'))[0][0])
+        mail_from = normalize(mail.get('From'), 'header')
+        mail_to = normalize(mail.get('To'), 'header')
+        mail_date = email.utils.parsedate(normalize(mail.get('Date'), 'header'))
 
         mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
