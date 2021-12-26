@@ -469,6 +469,7 @@ def getMailContent(mail):
 
     if content_of_mail_html:
         content_of_mail_html = re.sub(r"(?i)<html>.*?<head>.*?</head>.*?<body>", "", content_of_mail_html, flags=re.DOTALL)
+        content_of_mail_html = re.sub(r"(?i)<base .*?>", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)</body>.*?</html>", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)<!DOCTYPE.*?>", "", content_of_mail_html, flags=re.DOTALL)
         content_of_mail_html = re.sub(r"(?i)POSITION: absolute;", "", content_of_mail_html, flags=re.DOTALL)
