@@ -112,8 +112,13 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     if saveTo:
         with open(saveTo, "w") as f:
             if HTML_PRETTIFY:
-                soup = BeautifulSoup(result, "html.parser")
-                f.write(soup.prettify())
+                try:
+                    soup = BeautifulSoup(result, "html.parser")
+                    f.write(soup.prettify())
+                # RecursionError: maximum recursion depth exceeded while calling a Python object
+                # or any other case
+                except Exception as e:
+                    f.write(result)
             else:
                 f.write(result)
 
