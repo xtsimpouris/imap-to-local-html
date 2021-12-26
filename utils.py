@@ -43,8 +43,12 @@ def normalize(unknown, encoding = None):
     if unknown is None:
         return ''
 
-    if encoding and not encoding in ('unknown-8bit',):
+    if encoding and not encoding in ("unknown-8bit",):
         encoding = encoding.lower()
+
+        # Can't see how to decode such locale otherwise
+        if encoding == "el_gr.utf8":
+            encoding = "windows-1253"
 
         if encoding in ("quoted-printable", "7bit", "8bit"):
             try:
@@ -59,6 +63,7 @@ def normalize(unknown, encoding = None):
         if encoding == 'utf7':
             return normalize(imaputf7decode(unknown))
 
+        # This comes from email module where result is a list of tuples (text, encoding)
         if encoding == 'header':
             header = decode_header(unknown)
             result = ''
