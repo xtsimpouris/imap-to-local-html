@@ -265,7 +265,7 @@ def getMailFolders():
 
         isSelected = False
         for selectedFolder in IMAP_FOLDERS_ORIG:
-            if re.search(selectedFolder, folderID):
+            if re.search("^" + selectedFolder + "$", folderID):
                 isSelected = True
                 break
 
@@ -522,8 +522,16 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
         mail_from = normalize(mail.get('From'), 'header')
         mail_to = normalize(mail.get('To'), 'header')
         mail_date = email.utils.parsedate(normalize(mail.get('Date'), 'header'))
+        if not mail_date:
+            mail_date = (2000, 1, 1, 12, 0, 00, 0, 1, -1)
 
-        mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
+        if mail_id:
+            mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
+        else:
+            temp = "%s %s %s %s %s" % (folderID, mail_subject, mail_date, mail_from, mail_to)
+            mail_id = hashlib.md5(temp.encode()).hexdigest()
+            mail_id_hash = mail_id
+
         mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
         mail_raw = ""
         error_decoding = ""
@@ -711,12 +719,23 @@ for folderID in allFolders:
     for mail in maildir_folder:
         mail_id = mail.get('Message-Id')
         mail_subject = normalize(mail.get('Subject'), 'header')
+        mail_from = normalize(mail.get('From'), 'header')
+        mail_to = normalize(mail.get('To'), 'header')
 
         if not mail_subject:
             mail_subject = "(No Subject)"
 
         mail_date = email.utils.parsedate(normalize(mail.get('Date'), 'header'))
-        mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
+        if not mail_date:
+            mail_date = (2000, 1, 1, 12, 0, 00, 0, 1, -1)
+
+        if mail_id:
+            mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
+        else:
+            temp = "%s %s %s %s %s" % (folderID, mail_subject, mail_date, mail_from, mail_to)
+            mail_id = hashlib.md5(temp.encode()).hexdigest()
+            mail_id_hash = mail_id
+
         mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
         fileName = "%s/%s.html" % (mail_folder, mail_id_hash)
 
