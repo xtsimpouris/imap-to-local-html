@@ -147,8 +147,7 @@ Tested with: Python 3.8
 
 ### Known issues
 
-- No search function.
-- Not able to change default sorting (however they come).
+- No search function (across diffrent folders or within mail body).
 
 ## Info on restoring
 
