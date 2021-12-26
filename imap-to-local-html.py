@@ -616,6 +616,7 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
 
         renderPage(
             "%s/%s" % (maildir_result, mailList[mail_id]["file"]),
+            title="%s | %s" % (mail_subject, mailFolders[folder]["title"]),
             headerTitle=mailList[mail_id]["subject"],
             linkPrefix="../../..",
             content=renderTemplate(
@@ -649,6 +650,7 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
     sys.stdout.flush()
     renderPage(
         "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
+        title="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
         headerTitle="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
         linkPrefix=".",
         content=renderTemplate(
