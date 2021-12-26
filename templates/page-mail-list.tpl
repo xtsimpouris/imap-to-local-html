@@ -18,14 +18,14 @@
                     <td>{{ mailList[mail].to|simplifyEmailHeader }}</td>
                     <td>
                         {% if mailList[mail].error_decoding %}
-                            <i class="bi bi-exclamation-octagon btn-outline-danger" title="{{ mailList[mail].error_decoding }}"></i>
+                            <i class="bi bi-exclamation-octagon btn-outline-danger" title="{{ mailList[mail].error_decoding }}" />
                         {% endif %}
                         <a href="{{ linkPrefix }}{{ mailList[mail].link }}">{{ mailList[mail].subject|e }}</a>
                     </td>
                     <td class="align-right" data-order="{{ mailList[mail].size }}"><span class="nobr">{{ mailList[mail].size|humansize }}<span></td>
                     <td class="align-center">
                         {% if mailList[mail].attachments %}
-                            <i class="bi bi-paperclip" title="{{ mailList[mail].attachments }} attachment(s)"></i>
+                            <i class="bi bi-paperclip" title="{{ mailList[mail].attachments }} attachment(s)" />
                         {% endif %}
                     </td>
                 </tr>

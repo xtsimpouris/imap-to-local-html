@@ -4,6 +4,6 @@
         <div class="input-group-prepend">
             <span class="input-group-text" id="{{ info.title }}-span">{{ info.title }}</span>
         </div>
-        <input type="text" class="form-control" id="{{ info.title }}" aria-describedby="{{ info.title }}-span" value="{{ info.value }}" disabled>
+        <input type="text" class="form-control" id="{{ info.title }}" aria-describedby="{{ info.title }}-span" value="{{ info.value }}" disabled />
     </div>
 {% endfor %}
