@@ -34,7 +34,7 @@ import hashlib
 import sys
 import yaml
 
-from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader, slugify_safe
+from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader, slugify_safe, strftime
 import remote2local
 
 server = {}
@@ -105,6 +105,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     env = Environment()
     env.filters["humansize"] = humansize
     env.filters["simplifyEmailHeader"] = simplifyEmailHeader
+    env.filters["strftime"] = strftime
 
     template = env.from_string(templateContents)
     result = template.render(**kwargs)
@@ -170,6 +171,73 @@ def renderHeader(title):
     """
 
     return renderTemplate("header-main.tpl", None, title=title)
+
+
+def renderThread(mailsPerID = {}, threadCurrentMailID = '', currentlySelectedMailID = '', linkPrefix = '.'):
+    """
+    Renders a thread of mails
+    """
+
+    if not threadCurrentMailID in mailsPerID:
+        return ""
+
+    mailToShow = []
+
+    parentID = mailsPerID[threadCurrentMailID].get("parent")
+
+    # if there is no parent, assume no other siblings
+    if not parentID or not parentID in mailsPerID:
+        threadCurrent = {
+            "id": threadCurrentMailID,
+            "link": mailsPerID[threadCurrentMailID].get("link"),
+            "date": mailsPerID[threadCurrentMailID].get("date"),
+            "subject": mailsPerID[threadCurrentMailID].get("subject", "(mail not found)"),
+            "selected": threadCurrentMailID == currentlySelectedMailID,
+        }
+
+        mailToShow.append(threadCurrent)
+    else:
+        for siblingID in mailsPerID[parentID].get("children", []):
+            if not siblingID in mailsPerID:
+                threadCurrent = {
+                    "id": threadCurrentMailID,
+                    "link": None,
+                    "date": None,
+                    "subject": "(mail not found)",
+                    "selected": siblingID == currentlySelectedMailID,
+                }
+                mailToShow.append(threadCurrent)
+                continue
+
+            threadCurrent = {
+                "id": siblingID,
+                "link": mailsPerID[siblingID]["link"],
+                "date": mailsPerID[siblingID]["date"],
+                "subject": mailsPerID[siblingID]["subject"],
+                "selected": siblingID == currentlySelectedMailID,
+            }
+
+            mailToShow.append(threadCurrent)
+
+    # For each sibling, go to first child and try to recurse
+    for pos in range(len(mailToShow)):
+        # For some
+        if not mailToShow[pos]["id"] in mailsPerID:
+            continue
+
+        if not mailsPerID[ mailToShow[pos]["id"] ][ "children" ]:
+            continue
+
+        mailToShow[pos]["children"] = renderThread(
+            mailsPerID=mailsPerID,
+            threadCurrentMailID=mailsPerID[ mailToShow[pos]["id"] ][ "children" ][0],
+            currentlySelectedMailID=currentlySelectedMailID,
+            linkPrefix=linkPrefix,
+        )
+
+    mailToShow.sort(key=lambda val: val["date"])
+
+    return renderTemplate("thread-ul.tpl", None, mailToShow=mailToShow, linkPrefix=linkPrefix)
 
 
 def getMailFolders():
@@ -531,6 +599,12 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
             "error_decoding": error_decoding,
         }
 
+        threadParent = None
+        if mailsPerID.get(mail_id, {}).get("parent") or len(mailsPerID.get(mail_id, {}).get("children", [])) > 0:
+            threadParent = mail_id
+            while mailsPerID.get(threadParent, {}).get("parent"):
+                threadParent = mailsPerID.get(threadParent, {}).get("parent")
+
         renderPage(
             "%s/%s" % (maildir_result, mailList[mail_id]["file"]),
             headerTitle=mailList[mail_id]["subject"],
@@ -540,6 +614,12 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
                 None,
                 mail=mailList[mail_id],
                 linkPrefix="../../..",
+                thread=renderThread(
+                    mailsPerID=mailsPerID,
+                    threadCurrentMailID=threadParent,
+                    currentlySelectedMailID=mail_id,
+                    linkPrefix="../../..",
+                ),
             )
         )
 
@@ -630,9 +710,6 @@ for folderID in allFolders:
 
     for mail in maildir_folder:
         mail_id = mail.get('Message-Id')
-        if mail_id in mailsPerID:
-            continue
-
         mail_subject = normalize(mail.get('Subject'), 'header')
 
         if not mail_subject:
@@ -643,13 +720,30 @@ for folderID in allFolders:
         mail_folder = str(time.strftime("%Y/%m/%d", mail_date))
         fileName = "%s/%s.html" % (mail_folder, mail_id_hash)
 
-        mailsPerID[mail_id] = {
-            "id": mail_id,
-            "date": time.strftime("%Y-%m-%d %H:%m", mail_date),
-            "subject": mail_subject,
-            "file": fileName,
-            "link": "/%s" % fileName,
-        }
+        if not mail_id in mailsPerID:
+            mailsPerID[mail_id] = {}
+
+        mailsPerID[mail_id]["id"] = mail_id
+        mailsPerID[mail_id]["date"] = mail_date
+        mailsPerID[mail_id]["subject"] = mail_subject
+        mailsPerID[mail_id]["file"] = fileName
+        mailsPerID[mail_id]["link"] = "/%s" % fileName
+
+        if not mailsPerID[mail_id].get("children"):
+            mailsPerID[mail_id]["children"] = []
+
+        if not mailsPerID[mail_id].get("parent"):
+            mailsPerID[mail_id]["parent"] = normalize(mail.get('In-Reply-To'), 'header')
+
+            if mailsPerID[mail_id]["parent"]:
+                if not mailsPerID[mail_id]["parent"] in mailsPerID:
+                    mailsPerID[ mailsPerID[mail_id]["parent"] ] = {
+                        "parent": "",
+                        "children": [],
+                    }
+
+                if not mail_id in mailsPerID[ mailsPerID[mail_id]["parent"] ][ "children" ]:
+                    mailsPerID[ mailsPerID[mail_id]["parent"] ][ "children" ].append(mail_id)
 
     print(".", end="")
     sys.stdout.flush()

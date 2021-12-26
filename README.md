@@ -25,6 +25,7 @@ This is a python script to backup any IMAP capable email account to a bowsable H
 - [Datatables](https://www.datatables.net) to support sorting and searching in all columns within a folder
 - [python-slugify](https://pypi.org/project/python-slugify/) so it doesn't matter any more what filenames attachments have. They will be always saved locally in whatever OS as invalid characters are slugified
 - Works with any IMAP/IMAPS account
+- Supports "Reply-to" header and shows threads for easy navigation ![Thread support](images/04-email-view-reply-to-and-thread-support.png)
 - Supports multiple IMAP folders
 - Tries its best to handle many encodings. `chardet` is also comes into play to try and identify missing cases
 - Supports text, HTML and multipart email

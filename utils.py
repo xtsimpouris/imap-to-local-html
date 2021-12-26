@@ -4,6 +4,7 @@ import html
 import re
 import errno
 import os
+import time
 from quopri import decodestring
 import shutil
 from slugify import slugify
@@ -163,3 +164,14 @@ def slugify_safe(val, defaultVal = '', maxSize = 50):
         result = defaultVal
 
     return result
+
+
+def strftime(val, format="%Y-%m-%d %H:%m"):
+    """
+    Formats a date within Jinja env
+    """
+
+    if not val:
+        return "?"
+
+    return str(time.strftime(format, val))

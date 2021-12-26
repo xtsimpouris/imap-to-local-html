@@ -39,7 +39,7 @@
       </div>
     </div>
   </li>
-  {% if mail.replyTo %}
+  {% if mail.replyTo and mail.replyTo.link %}
     <li class="list-group-item">
       <div class="row">
         <div class="col-md-3 text-right">
@@ -47,6 +47,18 @@
         </div>
         <div class="col-md-9">
           <a href="{{ linkPrefix }}{{ mail.replyTo.link }}">{{ mail.replyTo.subject }}</a>
+        </div>
+      </div>
+    </li>
+  {% endif %}
+  {% if thread %}
+    <li class="list-group-item">
+      <div class="row">
+        <div class="col-md-3 text-right">
+          <strong>Thread:</strong>
+        </div>
+        <div class="col-md-9">
+          {{ thread|safe }}
         </div>
       </div>
     </li>
