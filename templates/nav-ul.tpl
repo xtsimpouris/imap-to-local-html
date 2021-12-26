@@ -2,9 +2,15 @@
     <li class="nav-item">
         {% for menu in menuToShow %}
             {% if menu.selected %}
-                <a class="nav-link" href="{{linkPrefix}}{{ menu.link }}" data-id="{{ menu.id }}">
-                    {{ menu.title }}
-                </a>
+                {% if menu.id == selectedFolder %}
+                    <a class="nav-link active" href="{{linkPrefix}}{{ menu.link }}" data-id="{{ menu.id }}">
+                        {{ menu.title }}
+                    </a>
+                {% else %}
+                    <a class="nav-link" href="{{linkPrefix}}{{ menu.link }}" data-id="{{ menu.id }}">
+                        {{ menu.title }}
+                    </a>
+                {% endif %}
             {% else %}
                 <a class="nav-link not-selected" href="{{linkPrefix}}{{ menu.link }}" data-id="{{ menu.id }}">
                     {{ menu.title }}

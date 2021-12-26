@@ -135,7 +135,11 @@ def renderMenu(selectedFolder = '', currentParent = '', linkPrefix = '.'):
             continue
 
         menuToAdd = folder
-        menuToAdd["children"] = renderMenu(selectedFolder, currentParent=folderID, linkPrefix=linkPrefix)
+        menuToAdd["children"] = renderMenu(
+            selectedFolder=selectedFolder,
+            currentParent=folderID,
+            linkPrefix=linkPrefix
+        )
         menuToShow.append(menuToAdd)
 
     if len(menuToShow) <= 0:
@@ -143,7 +147,13 @@ def renderMenu(selectedFolder = '', currentParent = '', linkPrefix = '.'):
 
     menuToShow.sort(key=lambda val: val["title"])
 
-    return renderTemplate("nav-ul.tpl", None, menuToShow=menuToShow, linkPrefix=linkPrefix)
+    return renderTemplate(
+        "nav-ul.tpl",
+        None,
+        menuToShow=menuToShow,
+        linkPrefix=linkPrefix,
+        selectedFolder=selectedFolder,
+    )
 
 
 def renderPage(saveTo, **kwargs):
@@ -155,7 +165,10 @@ def renderPage(saveTo, **kwargs):
     kwargs['title'] = getTitle(kwargs.get('title'))
     kwargs['username'] = IMAP_USERNAME
     kwargs['linkPrefix'] = kwargs.get('linkPrefix', '.')
-    kwargs['sideMenu'] = renderMenu(linkPrefix=kwargs['linkPrefix'])
+    kwargs['sideMenu'] = renderMenu(
+        selectedFolder=kwargs.get('selectedFolder', ''),
+        linkPrefix=kwargs['linkPrefix'],
+    )
 
     if (kwargs.get("headerTitle")):
         kwargs['header'] = renderHeader(kwargs.get("headerTitle"))
@@ -497,11 +510,13 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
             "%s/%s" % (maildir_result, mailFolders[folder]["file"]),
             headerTitle="Folder %s" % mailFolders[folder]["title"],
             linkPrefix=".",
+            selectedFolder=folder,
             content=renderTemplate(
                 "page-mail-list.tpl",
                 None,
                 mailList=mailList,
                 linkPrefix=".",
+                selectedFolder=folder,
             )
         )
 
@@ -619,11 +634,13 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
             title="%s | %s" % (mail_subject, mailFolders[folder]["title"]),
             headerTitle=mailList[mail_id]["subject"],
             linkPrefix="../../..",
+            selectedFolder=folder,
             content=renderTemplate(
                 "page-mail.tpl",
                 None,
                 mail=mailList[mail_id],
                 linkPrefix="../../..",
+                selectedFolder=folder,
                 thread=renderThread(
                     mailsPerID=mailsPerID,
                     threadCurrentMailID=threadParent,
@@ -653,11 +670,13 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
         title="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
         headerTitle="Folder %s (%d)" % (mailFolders[folder]["title"], len(mailList)),
         linkPrefix=".",
+        selectedFolder=folder,
         content=renderTemplate(
             "page-mail-list.tpl",
             None,
             mailList=mailList,
             linkPrefix=".",
+            selectedFolder=folder,
         )
     )
 
