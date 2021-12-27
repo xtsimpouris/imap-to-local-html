@@ -37,6 +37,8 @@ import yaml
 from utils import normalize, removeDir, copyDir, humansize, simplifyEmailHeader, slugify_safe, strftime
 import remote2local
 
+global server
+
 server = {}
 try:
     with open('imap-to-local-html.yml', 'r') as file:
@@ -49,22 +51,11 @@ if not server:
     print("No yml was found or is not valid, exiting. Please check README file or imap-to-local-html.samle.yml for more details")
     exit()
 
-IMAP_SERVER = server.get('domain')
-IMAP_USERNAME = server.get('username')
-IMAP_PASSWORD = server.get('password')
-HTML_PRETTIFY = server.get('prettify', True)
-
-if not IMAP_PASSWORD:
-    IMAP_PASSWORD = getpass.getpass()
-
-IMAP_FOLDERS_ORIG = server.get('folders')
-IMAP_SSL = server.get('ssl', True)
-
 mail = None
 mailFolders = None
 inc_location = "inc"
 
-maildir = 'mailbox.%s@%s' % (IMAP_USERNAME, IMAP_SERVER)
+maildir = 'mailbox.%s@%s' % (server.get('username'), server.get('domain'))
 if not os.path.exists(maildir):
     os.mkdir(maildir)
 
@@ -82,11 +73,13 @@ def getTitle(title = None):
     Returns title for all pges
     """
 
+    global server
+
     result = []
     if title:
         result.append(title)
 
-    result.append('%s@%s' % (IMAP_USERNAME, IMAP_SERVER))
+    result.append('%s@%s' % (server.get('username'), server.get('domain')))
     result.append('IMAP to local HTML')
 
     return ' | '.join(result)
@@ -96,7 +89,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     """
     Helper function to render a tamplete with variables
     """
-    global HTML_PRETTIFY
+    global server
 
     templateContents = ''
     with open("templates/%s" % templateFrom, "r") as f:
@@ -111,7 +104,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     result = template.render(**kwargs)
     if saveTo:
         with open(saveTo, "w") as f:
-            if HTML_PRETTIFY:
+            if server.get('prettify', True):
                 try:
                     soup = BeautifulSoup(result, "html.parser")
                     f.write(soup.prettify())
@@ -168,7 +161,7 @@ def renderPage(saveTo, **kwargs):
     Expects: title, contentZ
     """
     kwargs['title'] = getTitle(kwargs.get('title'))
-    kwargs['username'] = IMAP_USERNAME
+    kwargs['username'] = server.get('username')
     kwargs['linkPrefix'] = kwargs.get('linkPrefix', '.')
     kwargs['sideMenu'] = renderMenu(
         selectedFolder=kwargs.get('selectedFolder', ''),
@@ -263,7 +256,7 @@ def getMailFolders():
     Returns mail folders
     """
     global mailFolders
-    global IMAP_FOLDERS_ORIG
+    global server
 
     if not mailFolders is None:
         return mailFolders
@@ -282,7 +275,7 @@ def getMailFolders():
         fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folderID, "utf7"), defaultVal="folder"))
 
         isSelected = False
-        for selectedFolder in IMAP_FOLDERS_ORIG:
+        for selectedFolder in server.get('folders'):
             if re.search("^" + selectedFolder + "$", folderID):
                 isSelected = True
                 break
@@ -291,7 +284,7 @@ def getMailFolders():
             "id": folderID,
             "title": normalize(parts[len(parts) - 1], "utf7"),
             "parent": '.'.join(parts[:-1]),
-            "selected": '--all' in IMAP_FOLDERS_ORIG or isSelected,
+            "selected": '--all' in server.get('folders') or isSelected,
             "file": fileName,
             "link": "/%s" % fileName,
         }
@@ -343,19 +336,19 @@ def getHeader(raw, header):
 
 
 def renderIndexPage():
-    global IMAP_USERNAME
-    global IMAP_SERVER
+    global server
+
     now = datetime.datetime.now()
 
     allInfo = []
     allInfo.append({
         "title": "IMAP Server",
-        "value": IMAP_SERVER,
+        "value": server.get('domain'),
     })
 
     allInfo.append({
         "title": "Username",
-        "value": IMAP_USERNAME,
+        "value": server.get('username'),
     })
 
     allInfo.append({
@@ -688,7 +681,12 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
     print("Done!")
 
 returnWelcome()
-mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL)
+
+imapPassword = server.get('password')
+if not imapPassword:
+    imapPassword = getpass.getpass()
+
+mail = remote2local.connectToImapMailbox(server.get('domain'), server.get('username'), imapPassword, server.get('ssl', True))
 printImapFolders()
 
 allFolders = getMailFolders()
@@ -698,14 +696,14 @@ for folderID in allFolders:
 
     print(("Getting messages from server from folder: %s.") % normalize(folderID, "utf7"))
     retries = 0
-    if IMAP_SSL:
+    if server.get('ssl', True):
         try:
             remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
         except imaplib.IMAP4_SSL.abort:
             if retries < 5:
                 print(("SSL Connection Abort. Trying again (#%i).") % retries)
                 retries += 1
-                mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL)
+                mail = remote2local.connectToImapMailbox(server.get('domain'), server.get('username'), imapPassword, server.get('ssl', True))
                 remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
             else:
                 print("SSL Connection gave more than 5 errors. Not trying again")
@@ -716,7 +714,7 @@ for folderID in allFolders:
             if retries < 5:
                 print(("Connection Abort. Trying again (#%i).") % retries)
                 retries += 1
-                mail = remote2local.connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD)
+                mail = remote2local.connectToImapMailbox(server.get('domain'), server.get('username'), imapPassword)
                 remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
             else:
                 print("Connection gave more than 5 errors. Not trying again")
