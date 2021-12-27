@@ -18,7 +18,11 @@ def connectToImapMailbox(IMAP_SERVER, IMAP_USERNAME, IMAP_PASSWORD, IMAP_SSL):
     if IMAP_SSL is False:
         mail = imaplib.IMAP4(IMAP_SERVER)
     mail.login(IMAP_USERNAME, IMAP_PASSWORD)
-    mail.enable("UTF8=ACCEPT")
+
+    try:
+        mail.enable("UTF8=ACCEPT")
+    except Exception as e:
+        print("Server does not accept UTF8=ACCEPT")
 
     return mail
 
