@@ -1,5 +1,6 @@
 imap-to-local-html.yml
 mailbox*
 env*
+.vscode
 
 __pycache__
