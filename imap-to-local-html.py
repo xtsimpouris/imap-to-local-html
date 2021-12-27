@@ -265,12 +265,13 @@ def getMailFolders():
         return mailFolders
 
     mailFolders = {}
-    maillist = remote2local.getAllFolders(mail)
+    maillist, folderSeparator = remote2local.getAllFolders(mail)
     count = 0
     for folderID in maillist:
         count += 1
 
-        parts = folderID.split(".")
+        # TODO, if separator is part of the name, multiple levels arise (that do not exist)
+        parts = folderID.split(folderSeparator)
 
         fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folderID, "utf7"), defaultVal="folder"))
 
@@ -283,7 +284,7 @@ def getMailFolders():
         mailFolders[folderID] = {
             "id": folderID,
             "title": normalize(parts[len(parts) - 1], "utf7"),
-            "parent": '.'.join(parts[:-1]),
+            "parent": folderSeparator.join(parts[:-1]),
             "selected": '--all' in server.get('folders') or isSelected,
             "file": fileName,
             "link": "/%s" % fileName,

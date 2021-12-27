@@ -31,18 +31,28 @@ def getAllFolders(mail):
     """
     Returns all folders from remote server
     """
-    response = []
+    folderList = []
+    folderSeparator = ''
 
     maillist = mail.list()
-    for imapFolder in sorted(maillist[1]):
-        imapFolder = imapFolder.decode()
-        imapFolder = re.sub(r"(?i)\(.*\)", "", imapFolder, flags=re.DOTALL)
-        imapFolder = re.sub(r"(?i)\".\"", "", imapFolder, flags=re.DOTALL)
-        imapFolder = re.sub(r"(?i)\"", "", imapFolder, flags=re.DOTALL)
-        imapFolder = imapFolder.strip()
-        response.append(imapFolder)
+    if not maillist or not maillist[0].lower() == 'ok':
+        print("Unable to retrieve folder list")
+        return folderList, folderSeparator
 
-    return response
+    for folderLine in maillist[1]:
+        folderLine = folderLine.decode()
+        parts = re.findall("(\(.*\)) \"(.)\" (.*)", folderLine)
+
+        if not parts:
+            print("Unable to decode filder structure: %s" % folderLine)
+            continue
+
+        folderList.append(parts[0][2].strip().strip('"'))
+
+        if not folderSeparator:
+            folderSeparator = parts[0][1]
+
+    return folderList, folderSeparator
 
 
 def saveToMaildir(msg, mailFolder, maildir_raw):
