@@ -1,3 +1,9 @@
+{% for folderID in mail.folders %}
+  <div class="col-sm-12 text-right no-padding">
+    {{ folderID|renderFolderBreadcrump(linkPrefix) }}
+  </div>
+{% endfor %}
+
 <ul class="list-group">
   <li class="list-group-item">
     <div class="row">

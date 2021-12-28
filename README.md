@@ -30,6 +30,7 @@ This is a python script to backup any IMAP capable email account to a bowsable H
 - Tries its best to handle many encodings. `chardet` is also comes into play to try and identify missing cases
 - Supports text, HTML and multipart email
 - Saves attachments
+- Mail are saved in HTML format only once, even if exists across different folders (like Google "labels" approach)
 - Backups to HTML files for easy browsing
 - Small HTML files can be backed up to external medium more easily, and can be sent over the internet more easily.
 - Backs up to Maildir for [easy restoring](http://wiki.colar.net/ruby_script_to_upload_convert_a_maildir_inbox_to_an_imap_server)

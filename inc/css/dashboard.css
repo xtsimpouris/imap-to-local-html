@@ -162,3 +162,24 @@ ol.attachments {
 .align-right {
   text-align: right;
 }
+
+ul.folder-breadcrump {
+  list-style: none;
+  margin: 0;
+}
+
+ul.folder-breadcrump li {
+  display: inline-block;
+}
+
+ul.folder-breadcrump li:after {
+  content: ' > ';
+}
+
+ul.folder-breadcrump li:last-child:after {
+  content: none;
+}
+
+.no-padding {
+  padding: 0;
+}

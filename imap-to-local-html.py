@@ -99,6 +99,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     env.filters["humansize"] = humansize
     env.filters["simplifyEmailHeader"] = simplifyEmailHeader
     env.filters["strftime"] = strftime
+    env.filters["renderFolderBreadcrump"] = renderFolderBreadcrump
 
     template = env.from_string(templateContents)
     result = template.render(**kwargs)
@@ -117,6 +118,33 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
 
     return result
 
+
+def renderFolderBreadcrump(folderID, linkPrefix):
+    """
+    Renders a breadcrump towards a folder
+    """
+
+    allFolders = getMailFolders()
+    if not folderID or not folderID in allFolders:
+        return ''
+
+    folderList = []
+    currentFolderID = folderID
+    while currentFolderID and currentFolderID in allFolders:
+        if allFolders[currentFolderID]["selected"]:
+            folderList.append((allFolders[currentFolderID]["title"], allFolders[currentFolderID]["link"]))
+        else:
+            folderList.append((allFolders[currentFolderID]["title"], None))
+
+        currentFolderID = allFolders[currentFolderID]["parent"]
+
+    folderList = folderList[::-1]
+    return renderTemplate(
+        "folder-breadcrump.tpl",
+        None,
+        folderList=folderList,
+        linkPrefix=linkPrefix,
+    )
 
 def renderMenu(selectedFolder = '', currentParent = '', linkPrefix = '.'):
     """
@@ -543,7 +571,7 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
         if mail_id:
             mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         else:
-            temp = "%s %s %s %s %s" % (folderID, mail_subject, mail_date, mail_from, mail_to)
+            temp = "%s %s %s %s" % (mail_subject, mail_date, mail_from, mail_to)
             mail_id = hashlib.md5(temp.encode()).hexdigest()
             mail_id_hash = mail_id
 
@@ -620,6 +648,7 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
             },
             "attachments": attachments,
             "error_decoding": error_decoding,
+            "folders": mailsPerID[mail_id]["folders"],
         }
 
         threadParent = None
@@ -633,13 +662,13 @@ def backup_mails_to_html_from_local_maildir(folder, mailsPerID):
             title="%s | %s" % (mail_subject, mailFolders[folder]["title"]),
             headerTitle=mailList[mail_id]["subject"],
             linkPrefix="../../..",
-            selectedFolder=folder,
+            selectedFolder=mailsPerID[mail_id]["folders"],
             content=renderTemplate(
                 "page-mail.tpl",
                 None,
                 mail=mailList[mail_id],
                 linkPrefix="../../..",
-                selectedFolder=folder,
+                selectedFolder=mailsPerID[mail_id]["folders"],
                 thread=renderThread(
                     mailsPerID=mailsPerID,
                     threadCurrentMailID=threadParent,
@@ -758,7 +787,7 @@ for folderID in allFolders:
         if mail_id:
             mail_id_hash = hashlib.md5(mail_id.encode()).hexdigest()
         else:
-            temp = "%s %s %s %s %s" % (folderID, mail_subject, mail_date, mail_from, mail_to)
+            temp = "%s %s %s %s" % (mail_subject, mail_date, mail_from, mail_to)
             mail_id = hashlib.md5(temp.encode()).hexdigest()
             mail_id_hash = mail_id
 
@@ -776,6 +805,12 @@ for folderID in allFolders:
 
         if not mailsPerID[mail_id].get("children"):
             mailsPerID[mail_id]["children"] = []
+
+        if not mailsPerID[mail_id].get("folders"):
+            mailsPerID[mail_id]["folders"] = []
+
+        if not folderID in mailsPerID[mail_id]["folders"]:
+            mailsPerID[mail_id]["folders"].append(folderID)
 
         if not mailsPerID[mail_id].get("parent"):
             mailsPerID[mail_id]["parent"] = normalize(mail.get('In-Reply-To'), 'header')

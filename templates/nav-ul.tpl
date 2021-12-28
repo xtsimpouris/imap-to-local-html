@@ -2,7 +2,7 @@
     <li class="nav-item">
         {% for menu in menuToShow %}
             {% if menu.selected %}
-                {% if menu.id == selectedFolder %}
+                {% if menu.id == selectedFolder or menu.id in selectedFolder %}
                     <a class="nav-link active" href="{{linkPrefix}}{{ menu.link }}" data-id="{{ menu.id }}">
                         {{ menu.title }}
                     </a>
