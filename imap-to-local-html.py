@@ -104,7 +104,7 @@ def renderTemplate(templateFrom, saveTo, **kwargs):
     template = env.from_string(templateContents)
     result = template.render(**kwargs)
     if saveTo:
-        with open(saveTo, "w") as f:
+        with open(saveTo, "w", encoding="utf-8") as f:
             if server.get('prettify', True):
                 try:
                     soup = BeautifulSoup(result, "html.parser")
