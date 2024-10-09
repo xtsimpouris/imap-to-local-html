@@ -2,6 +2,7 @@ from email.header import decode_header
 from email.utils import parsedate
 import imaplib
 import mailbox
+import email
 import re
 import sys
 import time
