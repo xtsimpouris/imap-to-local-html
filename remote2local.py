@@ -102,6 +102,12 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
     for message_id in messageList:
         result, data = mail.fetch(message_id , "(RFC822)")
         raw_email = data[0][1]
+
+        # iCloud does not return RFC822 correctly and returns an int
+        if type(raw_email) == type(1):
+            result, data = mail.fetch(message_id, "(BODY[])")
+            raw_email = email.message_from_bytes(data[0][1])
+        
         maildir_folder = mailFolder.replace("/", ".")
         saveToMaildir(raw_email, maildir_folder, maildir_raw)
         sofar += 1
