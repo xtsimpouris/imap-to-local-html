@@ -92,6 +92,10 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
 
     try:
         typ, mdata = mail.search(None, "ALL")
+        # could restrict run here with '(SINCE "01-Jan-2024")' or perhaps a yml param
+        if mdata[0] == None:
+            print("...No new files!")
+            return
     except Exception as imaperror:
         print("Error in IMAP Query: %s." % imaperror)
         print("Does the imap folder \"%s\" exists?" % mailFolder)
