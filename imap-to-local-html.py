@@ -335,6 +335,29 @@ def getMailFolders():
             if mailFolders[menu]["parent"] == menusWithNoParent[0]:
                 mailFolders[menu]["parent"] = ""
 
+    # Add in any additional folders that may be mbox only
+    for i in server.get('folders'):
+        exists = False
+        for e in mailFolders:
+            if mailFolders[e].title == i:
+                exists = True
+
+        if exists = True:
+            continue
+
+        count += 1
+
+        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(i, "utf7"), defaultVal="folder"))
+
+        mailFolders[i] = {
+            "id": i,
+            "title": i,
+            "parent": "",
+            "selected": True,
+            "file": fileName,
+            "link": "/%s" % fileName,
+        }
+
     return mailFolders
 
 
