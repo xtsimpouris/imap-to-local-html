@@ -335,6 +335,29 @@ def getMailFolders():
             if mailFolders[menu]["parent"] == menusWithNoParent[0]:
                 mailFolders[menu]["parent"] = ""
 
+    # Add in any additional folders that may be mbox only
+    for i in server.get('folders'):
+        exists = False
+        for e in mailFolders:
+            if mailFolders[e].title == i:
+                exists = True
+
+        if exists = True:
+            continue
+
+        count += 1
+
+        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(i, "utf7"), defaultVal="folder"))
+
+        mailFolders[i] = {
+            "id": i,
+            "title": i,
+            "parent": "",
+            "selected": True,
+            "file": fileName,
+            "link": "/%s" % fileName,
+        }
+
     return mailFolders
 
 
@@ -748,6 +771,34 @@ for folderID in allFolders:
                 remote2local.getMessageToLocalDir(folderID, mail, maildir_raw)
             else:
                 print("Connection gave more than 5 errors. Not trying again")
+
+    print(("Getting messages from mbox from file: %s.") % normalize(folderID, "utf7"))
+    try:
+        mbox_file = mailbox.mbox("%s/%s" % (maildir, normalize(folderID, "utf7")), create=False)
+        
+        mbox = mailbox.Maildir(maildir_raw, factory=mailbox.MaildirMessage, create=True)
+        folder = mbox.add_folder(folderID.replace("/", "."))    
+        folder.lock()
+        
+        for msg in mbox_file:
+            try:
+                message_key = folder.add(msg)
+                folder.flush()
+
+                maildir_message = folder.get_message(message_key)
+                try:
+                    message_date_epoch = time.mktime(parsedate(decode_header(maildir_message.get("Date"))[0][0]))
+                except TypeError as typeerror:
+                    message_date_epoch = time.mktime((2000, 1, 1, 1, 1, 1, 1, 1, 0))
+                maildir_message.set_date(message_date_epoch)
+                maildir_message.add_flag("s")
+
+        mbox_file.close()
+        
+    finally:
+        folder.unlock()
+        folder.close()
+        mbox.close()
 
     print(("Done with folder: %s.") % normalize(folderID, "utf7"))
 
