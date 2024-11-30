@@ -101,7 +101,7 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
     print("Copying folder %s (%s)" % (normalize(mailFolder, "utf7"), len(messageList)), end="")
     for message_id in messageList:
         result, data = mail.fetch(message_id , "(RFC822)")
-        raw_email = data[0][1]
+        raw_email = data[0][1].replace(b'\r\n', b'\n')
         maildir_folder = mailFolder.replace("/", ".")
         saveToMaildir(raw_email, maildir_folder, maildir_raw)
         sofar += 1
