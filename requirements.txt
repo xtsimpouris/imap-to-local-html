@@ -5,5 +5,5 @@ Jinja2==3.0.3
 MarkupSafe==2.0.1
 python-slugify==5.0.2
 PyYAML==6.0
-soupsieve==2.4.1
+soupsieve==2.6
 text-unidecode==1.3
