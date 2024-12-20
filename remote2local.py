@@ -2,6 +2,7 @@ from email.header import decode_header
 from email.utils import parsedate
 import imaplib
 import mailbox
+import email
 import re
 import sys
 import time
@@ -91,6 +92,10 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
 
     try:
         typ, mdata = mail.search(None, "ALL")
+        # could restrict run here with '(SINCE "01-Jan-2024")' or perhaps a yml param
+        if mdata[0] == None:
+            print("...No new files!")
+            return
     except Exception as imaperror:
         print("Error in IMAP Query: %s." % imaperror)
         print("Does the imap folder \"%s\" exists?" % mailFolder)
@@ -101,7 +106,14 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
     print("Copying folder %s (%s)" % (normalize(mailFolder, "utf7"), len(messageList)), end="")
     for message_id in messageList:
         result, data = mail.fetch(message_id , "(RFC822)")
-        raw_email = data[0][1].replace(b'\r\n', b'\n')
+        raw_email = data[0][1]
+
+        # iCloud does not return RFC822 correctly and returns an int
+        if type(raw_email) == type(1):
+            result, data = mail.fetch(message_id, "(BODY[])")
+            raw_email = email.message_from_bytes(data[0][1])
+            
+        raw_email = raw_email.replace(b'\r\n', b'\n')
         maildir_folder = mailFolder.replace("/", ".")
         saveToMaildir(raw_email, maildir_folder, maildir_raw)
         sofar += 1
