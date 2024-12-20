@@ -337,6 +337,8 @@ def getMailFolders():
 
     # Add in any additional folders that may be mbox only
     for folderName in server.get('folders'):
+        folderName = normalize(folderName, "utf7")
+        
         exists = False
         for existingName in mailFolders:
             if mailFolders[existingName].title == folderName:
@@ -348,11 +350,11 @@ def getMailFolders():
 
         count += 1
 
-        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folderName, "utf7"), defaultVal="folder"))
+        fileName = "%03d-%s.html" % (count, slugify_safe(folderName, defaultVal="folder"))
 
-        mailFolders[normalize(folderName, "utf8")] = {
-            "id": normalize(folderName, "utf8"),
-            "title": normalize(folderName, "utf8"),
+        mailFolders[folderName] = {
+            "id": folderName,
+            "title": folderName,
             "parent": "",
             "selected": True,
             "file": fileName,
