@@ -336,22 +336,23 @@ def getMailFolders():
                 mailFolders[menu]["parent"] = ""
 
     # Add in any additional folders that may be mbox only
-    for i in server.get('folders'):
+    for folder in server.get('folders'):
         exists = False
-        for e in mailFolders:
-            if mailFolders[e].title == i:
+        for existing in mailFolders:
+            if mailFolders[existing].title == folder:
                 exists = True
+                break
 
         if exists = True:
             continue
 
         count += 1
 
-        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(i, "utf7"), defaultVal="folder"))
+        fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folder, "utf7"), defaultVal="folder"))
 
-        mailFolders[i] = {
-            "id": i,
-            "title": i,
+        mailFolders[folder] = {
+            "id": folder,
+            "title": folder,
             "parent": "",
             "selected": True,
             "file": fileName,
