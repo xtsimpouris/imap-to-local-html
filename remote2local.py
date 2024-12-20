@@ -112,7 +112,8 @@ def getMessageToLocalDir(mailFolder, mail, maildir_raw):
         if type(raw_email) == type(1):
             result, data = mail.fetch(message_id, "(BODY[])")
             raw_email = email.message_from_bytes(data[0][1])
-        
+            
+        raw_email = raw_email.replace(b'\r\n', b'\n')
         maildir_folder = mailFolder.replace("/", ".")
         saveToMaildir(raw_email, maildir_folder, maildir_raw)
         sofar += 1
