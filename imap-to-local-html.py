@@ -350,9 +350,9 @@ def getMailFolders():
 
         fileName = "%03d-%s.html" % (count, slugify_safe(normalize(folderName, "utf7"), defaultVal="folder"))
 
-        mailFolders[folderName] = {
-            "id": folderName,
-            "title": folderName,
+        mailFolders[normalize(folderName, "utf8")] = {
+            "id": normalize(folderName, "utf8"),
+            "title": normalize(folderName, "utf8"),
             "parent": "",
             "selected": True,
             "file": fileName,
